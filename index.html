@@ -229,7 +229,7 @@ async function drawComp(){
   let nm=0,ns=0;
   pts.forEach(r=>{if(!b.contains([r[0],r[1]]))return;const ro=role(r[2]);if(!ro)return;ro==="main"?nm++:ns++;
     const m=L.circleMarker([r[0],r[1]],{renderer,radius:ro==="main"?7:4.5,color:"#fff",weight:2,fillColor:ro==="main"?"#ff4d2e":"#5b6170",fillOpacity:1});
-    m.bindPopup(`<b>${esc(r[3])||"Unnamed"}</b><br><span style="color:#737884">${ro==="main"?BIZ[biz].mainL.slice(0,-1):BIZ[biz].sideL.slice(0,-1)}${r[4]?" · "+esc(r[4]):""}</span>`);m.addTo(G.comp)});
+    m.bindPopup(`<b>${esc(r[3])||"Unnamed"}</b><br><span style="color:#737884">${ro==="main"?BIZ[biz].mainL.slice(0,-1):BIZ[biz].sideL.slice(0,-1)}${r[4]?" · "+esc(r[4]):""}${r[5]&&r[5].includes("s")?"<br>Source: SCB company register":""}</span>`);m.addTo(G.comp)});
   if(!site)status(`${nm} ${BIZ[biz].mainL.toLowerCase()}${BIZ[biz].side?` and ${ns} ${BIZ[biz].sideL.toLowerCase()}`:""} in view`);
 }
 function retry(msg,fn){$("status").innerHTML=`${esc(msg)} <button id="rt">Try again</button>`;$("rt").onclick=fn}
@@ -331,7 +331,7 @@ async function checkSite(p){
     </section>
     <section class="fac"><h3>Competition <em>${cS!=null?Math.round(cS*100):"…"}</em></h3>
       ${comps?bar(cS)+`<div class="kv"><span>${B.mainL} within 1 km</span><b>${m1}</b></div><div class="kv"><span>${B.mainL} within 3 km</span><b>${m3}</b></div>${B.side?`<div class="kv"><span>${B.sideL} within 3 km</span><b>${side.length}</b></div>`:""}<div class="kv"><span>Nearest ${B.name}</span><b>${main[0]?km(main[0].d):"none in 3 km"}</b></div>
-      ${main.length?`<ul class="near">${main.slice(0,5).map(c=>`<li><span>${esc(c.r[3])||"Unnamed"}</span><span>${km(c.d)}</span></li>`).join("")}</ul>`:""}<p class="note">From OpenStreetMap, which misses some small workshops.${B.sideNote?" "+B.sideL+" are counted separately because "+B.sideNote+".":""}</p>`:'<div class="skel"></div><div class="skel" style="width:60%"></div>'}
+      ${main.length?`<ul class="near">${main.slice(0,5).map(c=>`<li><span>${esc(c.r[3])||"Unnamed"}</span><span>${km(c.d)}</span></li>`).join("")}</ul>`:""}<p class="note">${POI&&POI.some(r=>r[5]&&r[5].includes("s"))?"From OpenStreetMap and SCB's company register (businesses with staff).":"From OpenStreetMap, which misses some small workshops."}${B.sideNote?" "+B.sideL+" are counted separately because "+B.sideNote+".":""}</p>`:'<div class="skel"></div><div class="skel" style="width:60%"></div>'}
     </section>
     ${dz?`<section class="fac"><h3>Local market · SCB <em>${Math.round(ks)}</em></h3>${bar(ks/100)}
       <div class="kv"><span>Cars within 3 km</span><b>${fmt(dz.cars3)}</b></div><div class="kv"><span>People within 3 km</span><b>${fmt(dz.pop3)}</b></div>${POI?`<div class="kv"><span>Cars per ${B.name} within 3 km</span><b>${fmt(dz.gap)}</b></div>`:""}<div class="kv"><span>Cars per 1 000 people here</span><b>${fmt(dz.cars/dz.pop*1000)}</b></div><div class="kv"><span>Average net income here</span><b>${fmt(dz.inc*1000)} kr</b></div><div class="kv"><span>House price per m² (municipality)</span><b>${k&&k.hps?fmt(k.hps)+" kr":"–"}</b></div>
