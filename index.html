@@ -3,85 +3,139 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Site Finder: car businesses in Sweden</title>
+<meta name="theme-color" content="#16181d">
+<title>Site Finder · car businesses in Sweden</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100,500..800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#fff;--ink:#111;--mut:#666;--rule:#ddd;--soft:#f3f3f3;--red:#e4002b;--blue:#1f5fbf}
+:root{--ink:#16181d;--ink2:#3b3f48;--mut:#737884;--line:#e7e8ec;--soft:#f4f5f7;--card:#fff;--sig:#ff4d2e;--r:16px;--sh:0 10px 30px rgba(16,18,24,.16),0 2px 6px rgba(16,18,24,.08)}
 *{box-sizing:border-box;min-width:0}
 html,body{height:100%;margin:0}
-body{font:16px/1.45 Archivo,system-ui,sans-serif;color:var(--ink);background:var(--bg);display:grid;grid-template-rows:auto minmax(0,1fr);overflow:hidden}
-header{padding:10px max(12px,env(safe-area-inset-left)) 10px;border-top:6px solid var(--ink);display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding-top:max(10px,env(safe-area-inset-top))}
-h1{font-stretch:112%;font-weight:800;font-size:20px;margin:0 8px 0 0;white-space:nowrap}
-form{display:flex;flex:1 1 260px;gap:6px}
-input,select,button{font:inherit;font-size:16px;min-height:44px;border:2px solid var(--ink);background:var(--bg);color:var(--ink);padding:0 10px;border-radius:0}
-input[type=search]{flex:1}
-button{cursor:pointer;font-weight:600}
-button.on{background:var(--ink);color:var(--bg)}
-:focus-visible{outline:3px solid var(--red);outline-offset:2px}
-.app{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 380px}
-#map{height:100%;min-height:300px}
-aside{border-left:3px solid var(--ink);overflow-y:auto;padding:14px 16px 24px;background:var(--bg)}
-.layers{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
-.layers button{font-size:14px;min-height:40px;padding:0 10px}
-h2{font-stretch:112%;font-weight:800;font-size:22px;line-height:1.15;margin:4px 0 6px}
-h3{font-size:15px;margin:16px 0 6px;padding-top:8px;border-top:2px solid var(--ink)}
-.big{font-stretch:125%;font-weight:800;font-size:44px;line-height:1;color:var(--red)}
-.row{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid var(--rule);padding:6px 0;font-size:15px}
-.row b{white-space:nowrap;font-variant-numeric:tabular-nums;text-align:right}
-.note{font-size:13px;color:var(--mut)}
-.status{font-size:13px;color:var(--mut);min-height:1.4em}
-.meter{height:8px;background:var(--soft);margin-top:3px}.meter i{display:block;height:100%;background:var(--red)}
-.key{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:13px;margin:6px 0}
-.key span{display:inline-flex;align-items:center;gap:5px}
-.sw{display:inline-block;width:18px;height:5px}
-.dot{display:inline-block;width:11px;height:11px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #0004}
-ol{padding-left:1.2em;margin:6px 0}li{margin:3px 0;font-size:15px}
-.sheet-handle{display:none}
-dialog{border:3px solid var(--ink);max-width:min(92vw,460px);padding:18px}
-dialog::backdrop{background:#0006}
+body{font:15px/1.45 Inter,system-ui,sans-serif;color:var(--ink);background:#e9eaed;overflow:hidden;-webkit-font-smoothing:antialiased}
+#map{position:fixed;inset:0;z-index:0;background:#eef0f2}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--sig);outline-offset:2px}
+.panel{position:fixed;z-index:500;left:16px;top:16px;bottom:16px;width:392px;display:flex;flex-direction:column;background:var(--card);border-radius:var(--r);box-shadow:var(--sh);overflow:hidden}
+.top{padding:16px 16px 12px;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.logo{width:30px;height:30px;border-radius:9px;background:var(--ink);display:grid;place-items:center;flex:none}
+.brand b{font-family:Archivo,Inter,sans-serif;font-stretch:110%;font-weight:800;font-size:19px;letter-spacing:-.01em}
+.brand span{color:var(--mut);font-size:13px;margin-left:auto}
+.search{display:flex;align-items:center;gap:8px;background:var(--soft);border-radius:12px;padding:0 6px 0 12px;height:48px}
+.search input{flex:1;border:0;background:none;font-size:16px;height:100%;outline:none}
+.search button{border:0;background:var(--ink);color:#fff;border-radius:9px;height:36px;padding:0 14px;font-weight:600}
+.chips{display:flex;gap:6px;margin-top:10px;overflow-x:auto;scrollbar-width:none}
+.chip{flex:none;border:1px solid var(--line);background:#fff;border-radius:999px;height:36px;padding:0 14px;font-weight:500;font-size:14px;white-space:nowrap}
+.chip[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:#fff}
+.body{flex:1;overflow-y:auto;padding:16px;overscroll-behavior:contain}
+.status{font-size:13px;color:var(--mut);display:flex;align-items:center;gap:8px;min-height:20px}
+.status button{border:1px solid var(--line);background:#fff;border-radius:8px;height:30px;padding:0 10px;font-size:13px}
+.spin{width:12px;height:12px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--ink);animation:sp .8s linear infinite;flex:none;display:inline-block}
+@keyframes sp{to{transform:rotate(360deg)}}
+.hero{display:grid;grid-template-columns:minmax(0,1fr) 92px;gap:12px;align-items:center;margin:4px 0 14px}
+.hero h2{font-family:Archivo,Inter,sans-serif;font-stretch:105%;font-weight:800;font-size:22px;line-height:1.15;margin:0}
+.hero p{margin:4px 0 0;color:var(--mut);font-size:13px}
+.gauge{position:relative;width:92px;height:92px}
+.gauge svg{width:100%;height:100%;transform:rotate(-90deg)}
+.gauge .n{position:absolute;inset:0;display:grid;place-items:center;font-family:Archivo,Inter,sans-serif;font-weight:800;font-size:30px;font-stretch:110%;line-height:1}
+.gauge .n small{display:block;font:500 11px Inter,sans-serif;color:var(--mut);text-align:center;margin-top:2px}
+.verdict{display:inline-block;margin-top:8px;font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--soft)}
+.facs{display:grid;gap:10px;margin-bottom:6px}
+.fac{border:1px solid var(--line);border-radius:12px;padding:12px}
+.fac h3{display:flex;justify-content:space-between;align-items:baseline;margin:0 0 8px;font-size:14px;font-weight:600}
+.fac h3 em{font-style:normal;font-family:Archivo,Inter,sans-serif;font-weight:800;font-size:17px}
+.bar{height:6px;border-radius:3px;background:var(--soft);overflow:hidden;margin-bottom:10px}
+.bar i{display:block;height:100%;border-radius:3px;background:var(--ink)}
+.kv{display:flex;justify-content:space-between;gap:10px;font-size:14px;padding:3px 0}
+.kv span{color:var(--ink2)}.kv b{font-weight:600;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.near{list-style:none;padding:0;margin:8px 0 0;border-top:1px solid var(--line)}
+.near li{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:6px 0;border-bottom:1px solid var(--line)}
+.near li span:last-child{color:var(--mut);white-space:nowrap}
+.note{font-size:12px;color:var(--mut);margin:8px 0 0}
+.skel{height:14px;border-radius:6px;background:linear-gradient(90deg,var(--soft),#e9ebef,var(--soft));background-size:200% 100%;animation:sk 1.2s infinite;margin:6px 0}
+@keyframes sk{to{background-position:-200% 0}}
+.intro h2{font-family:Archivo,Inter,sans-serif;font-stretch:105%;font-weight:800;font-size:22px;margin:4px 0 6px;line-height:1.15}
+.intro p{margin:0 0 14px;color:var(--ink2)}
+.steps{display:grid;gap:8px;margin:0 0 16px;padding:0;list-style:none;counter-reset:s}
+.steps li{display:flex;gap:10px;align-items:flex-start;font-size:14px;color:var(--ink2)}
+.steps li::before{counter-increment:s;content:counter(s);flex:none;width:22px;height:22px;border-radius:50%;background:var(--soft);display:grid;place-items:center;font-weight:600;font-size:12px;color:var(--ink)}
+.legend{display:grid;gap:6px;font-size:13px;color:var(--ink2);border-top:1px solid var(--line);padding-top:12px}
+.legend div{display:flex;align-items:center;gap:8px}
+.dot{width:12px;height:12px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.15);flex:none}
+.ln{width:22px;height:4px;border-radius:2px;flex:none}
+.src{font-size:12px;color:var(--mut);margin-top:14px}
+.btn{height:42px;border-radius:10px;border:1px solid var(--line);background:#fff;padding:0 14px;font-weight:600}
+.btn.pri{background:var(--ink);color:#fff;border-color:var(--ink)}
+.layers{position:fixed;z-index:450;top:16px;right:16px;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;max-width:calc(100vw - 440px)}
+.layers button{border:0;background:#fff;box-shadow:var(--sh);border-radius:999px;height:38px;padding:0 14px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:7px}
+.layers button i{width:9px;height:9px;border-radius:50%;background:#c9ccd3}
+.layers button[aria-pressed=true] i{background:var(--sig)}
+.leaflet-left{left:420px}
+.leaflet-control-zoom{border:0!important;box-shadow:var(--sh)!important;border-radius:12px!important;overflow:hidden}
+.leaflet-control-zoom a{width:40px!important;height:40px!important;line-height:40px!important;border:0!important;color:var(--ink)!important}
 .leaflet-container{font:inherit}
-@media(max-width:820px){
- .app{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto}
- aside{border-left:0;border-top:3px solid var(--ink);height:44vh;padding-bottom:max(24px,env(safe-area-inset-bottom))}
- aside.min{height:120px}
- .sheet-handle{display:block;width:100%;min-height:28px;border:0;background:none;padding:0;margin:-8px 0 4px}
- .sheet-handle::before{content:"";display:block;width:44px;height:5px;background:#bbb;margin:0 auto;border-radius:3px}
- h1{display:none}
- header{gap:6px}
- #biz{flex:1 1 100%}
+.leaflet-popup-content-wrapper{border-radius:12px;box-shadow:var(--sh)}
+.leaflet-popup-content{margin:12px 14px;font-size:14px;line-height:1.4}
+.spot{position:relative;width:22px;height:22px;border-radius:50%;background:var(--ink);border:4px solid #fff;box-shadow:0 2px 10px rgba(0,0,0,.4)}
+.spot::after{content:"";position:absolute;inset:-14px;border-radius:50%;border:2px solid var(--ink);opacity:0;animation:pl 1.8s ease-out infinite}
+@keyframes pl{0%{transform:scale(.4);opacity:.7}100%{transform:scale(1.4);opacity:0}}
+.handle{display:none}
+dialog{border:0;border-radius:var(--r);box-shadow:var(--sh);max-width:min(92vw,440px);padding:20px}
+dialog::backdrop{background:rgba(16,18,24,.45)}
+dialog h2{font-family:Archivo,Inter,sans-serif;font-weight:800;margin:0 0 8px;font-size:20px}
+dialog input{width:100%;height:46px;border:1px solid var(--line);border-radius:10px;padding:0 12px;font-size:16px}
+@media(min-width:761px){.search-float{display:contents}}
+@media(max-width:760px){
+ .panel{left:0;right:0;top:auto;bottom:0;width:auto;height:46vh;border-radius:20px 20px 0 0;transition:height .28s ease;padding-bottom:env(safe-area-inset-bottom)}
+ .panel.peek{height:150px}
+ .panel.full{height:calc(100% - 76px)}
+ .handle{display:block;border:0;background:none;width:100%;height:24px;padding:0;flex:none}
+ .handle::before{content:"";display:block;width:40px;height:5px;border-radius:3px;background:#d3d5db;margin:8px auto 0}
+ .top{padding:2px 16px 10px}
+ .chips{margin-top:0}
+ .brand{display:none}
+ .search-float{position:fixed;z-index:520;left:12px;right:12px;top:calc(10px + env(safe-area-inset-top))}
+ .search-float .search{background:#fff;box-shadow:var(--sh)}
+ .layers{top:calc(68px + env(safe-area-inset-top));right:10px;left:auto;max-width:none;flex-direction:column;align-items:flex-end}
+ .layers button{height:34px;padding:0 11px;font-size:12px}
+ .leaflet-left{left:0}
+ .leaflet-top.leaflet-left{top:calc(58px + env(safe-area-inset-top))}
+ .leaflet-bottom{bottom:46vh}
+ body:has(.panel.peek) .leaflet-bottom{bottom:150px}
 }
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
-<header>
-  <h1>Site Finder</h1>
-  <form id="search"><input type="search" id="q" placeholder="Search an address or town" aria-label="Search an address or town" autocomplete="off"><button>Go</button></form>
-  <select id="biz" aria-label="Business type">
-    <option value="tyre">Tyre shop</option><option value="mech">Car mechanic</option><option value="wash">Car wash and care</option>
-  </select>
-</header>
-<div class="app">
-  <div id="map"></div>
-  <aside id="panel">
-    <button class="sheet-handle" id="handle" aria-label="Expand or collapse panel"></button>
-    <div class="layers" role="group" aria-label="Map layers">
-      <button id="L-comp" class="on" aria-pressed="true">Competitors</button>
-      <button id="L-road" class="on" aria-pressed="true">Road traffic</button>
-      <button id="L-kom" aria-pressed="false">Municipality score</button>
-      <button id="L-tv" aria-pressed="false">Measured traffic</button>
-    </div>
+<div id="map" aria-label="Map"></div>
+
+<div class="panel" id="panel">
+  <button class="handle" id="handle" aria-label="Resize panel"></button>
+  <div class="top">
+    <div class="brand"><div class="logo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg></div><b>Site Finder</b><span id="upd"></span></div>
+    <div class="search-float"><form class="search" id="search" role="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#737884" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input type="search" id="q" placeholder="Search address or town" aria-label="Search address or town" autocomplete="off" enterkeyhint="search"><button>Go</button></form></div>
+    <div class="chips" role="group" aria-label="Business type" id="biz"></div>
+  </div>
+  <div class="body" id="body">
     <div class="status" id="status" role="status"></div>
     <div id="out"></div>
-  </aside>
+  </div>
+</div>
+
+<div class="layers" role="group" aria-label="Map layers">
+  <button id="L-comp" aria-pressed="true"><i></i>Competitors</button>
+  <button id="L-kom" aria-pressed="false"><i></i>Market heat</button>
+  <button id="L-tv" aria-pressed="false"><i></i>Live traffic</button>
 </div>
 
 <dialog id="tvdlg">
-  <h2>Trafikverket traffic counts</h2>
-  <p>Measured traffic comes from Trafikverket's open API, which needs a free key. Register at <b>api.trafikinfo.trafikverket.se</b>, create a key, and paste it here. It's saved only in this browser.</p>
-  <form method="dialog" id="tvform" style="display:grid;gap:8px">
-    <input id="tvkey" placeholder="Your API key" autocomplete="off" aria-label="Trafikverket API key">
-    <div style="display:flex;gap:8px"><button value="save">Save and show</button><button value="cancel" formnovalidate>Cancel</button></div>
+  <h2>Live traffic counts</h2>
+  <p>Live counts come from Trafikverket's open API, which needs a free key. Register at <b>api.trafikinfo.trafikverket.se</b>, create a key and paste it here. It's saved only in this browser.</p>
+  <form method="dialog" id="tvform" style="display:grid;gap:10px">
+    <input id="tvkey" placeholder="API key" autocomplete="off" aria-label="Trafikverket API key">
+    <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn" value="cancel" formnovalidate>Cancel</button><button class="btn pri" value="save">Save</button></div>
   </form>
 </dialog>
 
@@ -90,150 +144,169 @@ dialog::backdrop{background:#0006}
 {
 const $=id=>document.getElementById(id);
 const fmt=n=>n==null||isNaN(n)?"–":Math.round(n).toLocaleString("sv-SE");
+const km=m=>m<1000?Math.round(m/10)*10+" m":(m/1000).toFixed(1).replace(".",",")+" km";
+const esc=s=>String(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const phone=()=>innerWidth<=760;
 const OVERPASS=["https://overpass-api.de/api/interpreter","https://overpass.private.coffee/api/interpreter","https://maps.mail.ru/osm/tools/overpass/api/interpreter"];
 const BIZ={
- tyre:{name:"tyre shop",main:['nwr["shop"="tyres"]','nwr["service:vehicle:tyres"="yes"]'],side:['nwr["shop"="car_repair"]','nwr["craft"="car_repair"]'],mainL:"Tyre shops",sideL:"Garages (many also fit tyres)"},
- mech:{name:"car mechanic",main:['nwr["shop"="car_repair"]','nwr["craft"="car_repair"]'],side:['nwr["shop"="tyres"]'],mainL:"Garages",sideL:"Tyre shops"},
- wash:{name:"car wash",main:['nwr["amenity"="car_wash"]'],side:['nwr["shop"="car"]["service:vehicle:car_wash"="yes"]'],mainL:"Car washes",sideL:"Dealers with car wash"}};
-// Typical Swedish traffic by road class (vehicles per day). Rough guides, not measurements.
-const ROAD={motorway:{l:"Motorway",adt:"20 000–80 000",v:1,c:"#7a0019",w:6},trunk:{l:"Major road",adt:"8 000–30 000",v:.85,c:"#c4001f",w:5},
- primary:{l:"Main road",adt:"4 000–15 000",v:.7,c:"#f05a28",w:4},secondary:{l:"Secondary road",adt:"1 500–6 000",v:.5,c:"#f5a623",w:3},
- tertiary:{l:"Local through-road",adt:"500–3 000",v:.3,c:"#f2d06b",w:2},residential:{l:"Residential street",adt:"under 500",v:.1,c:"#bbb",w:1},unclassified:{l:"Minor road",adt:"under 500",v:.12,c:"#bbb",w:1}};
+ tyre:{label:"Tyre shop",name:"tyre shop",main:"t",side:"r",mainL:"Tyre shops",sideL:"Garages",sideNote:"many also fit tyres"},
+ mech:{label:"Car mechanic",name:"garage",main:"r",side:"t",mainL:"Garages",sideL:"Tyre shops",sideNote:""},
+ wash:{label:"Car wash",name:"car wash",main:"w",side:"",mainL:"Car washes",sideL:"",sideNote:""}};
+const ROAD={motorway:{l:"Motorway",adt:"20 000–80 000",v:1,c:"#9b1030",w:6},trunk:{l:"Major road",adt:"8 000–30 000",v:.85,c:"#e0262f",w:5},
+ primary:{l:"Main road",adt:"4 000–15 000",v:.7,c:"#ff7a2f",w:4.5},secondary:{l:"Secondary road",adt:"1 500–6 000",v:.5,c:"#ffb02e",w:3.5},
+ tertiary:{l:"Local through-road",adt:"500–3 000",v:.3,c:"#ffd666",w:2.5},residential:{l:"Residential street",adt:"under 500",v:.1,c:"#c4c7cf",w:1.5},unclassified:{l:"Minor road",adt:"under 500",v:.12,c:"#c4c7cf",w:1.5}};
 ["motorway","trunk","primary","secondary","tertiary"].forEach(k=>ROAD[k+"_link"]={...ROAD[k],l:ROAD[k].l+" ramp",v:ROAD[k].v*.8});
-let biz="tyre",site=null,tvKey="";try{tvKey=localStorage.getItem("tvkey")||""}catch(e){}
-const map=L.map("map",{zoomControl:true,preferCanvas:true}).setView([59.33,18.06],12);
-L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}).addTo(map);
-const G={comp:L.layerGroup().addTo(map),road:L.layerGroup().addTo(map),kom:L.layerGroup(),tv:L.layerGroup(),site:L.layerGroup().addTo(map)};
-const on={comp:true,road:true,kom:false,tv:false};
-const status=t=>$("status").textContent=t||"";
+let biz="tyre",site=null,tvKey="",POI=null;try{tvKey=localStorage.getItem("tvkey")||""}catch(e){}
+const on={comp:true,kom:false,tv:false};
+const status=(t,busy)=>{$("status").innerHTML=t?(busy?'<span class="spin"></span>':"")+esc(t):""};
 
-// One request at a time (public servers allow ~2 per visitor), 15 s timeout per server, fall through mirrors.
-let opChain=Promise.resolve(),opStart=0;
-async function opOnce(q){let err;for(let i=0;i<OVERPASS.length;i++){const u=OVERPASS[(opStart+i)%OVERPASS.length];const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),15000);
+const map=L.map("map",{zoomControl:false,preferCanvas:true}).setView([62.4,16.3],5);
+L.control.zoom({position:"topleft"}).addTo(map);
+L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",{maxZoom:20,subdomains:"abcd",attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'}).addTo(map);
+const G={kom:L.layerGroup(),road:L.layerGroup().addTo(map),comp:L.layerGroup().addTo(map),tv:L.layerGroup(),site:L.layerGroup().addTo(map)};
+const renderer=L.canvas({padding:.3});
+
+// Overpass: one request at a time, 15 s per server, then the next server
+let opChain=Promise.resolve();
+async function opOnce(q){let err;for(const u of OVERPASS){const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),15000);
   try{const r=await fetch(u,{method:"POST",body:"data="+encodeURIComponent(q),headers:{"Content-Type":"application/x-www-form-urlencoded"},signal:ac.signal});clearTimeout(tm);
-    if(r.ok){const d=await r.json();if(d&&d.elements){opStart=(opStart+i)%OVERPASS.length;return d}}err=new Error("HTTP "+r.status)}catch(e){clearTimeout(tm);err=e}}throw err||new Error("No server answered")}
+    if(r.ok){const d=await r.json();if(d&&d.elements)return d}err=new Error("HTTP "+r.status)}catch(e){clearTimeout(tm);err=e}}throw err}
 function overpass(q){const run=opChain.then(()=>opOnce(q));opChain=run.catch(()=>{});return run}
-const bboxStr=b=>`${b.getSouth().toFixed(4)},${b.getWest().toFixed(4)},${b.getNorth().toFixed(4)},${b.getEast().toFixed(4)}`;
-const ll=e=>e.center?[e.center.lat,e.center.lon]:[e.lat,e.lon];
-function compQuery(area){const B=BIZ[biz];return `[out:json][timeout:25];(${B.main.map(s=>s+area+";").join("")})->.m;(${B.side.map(s=>s+area+";").join("")})->.s;.m out center tags;.s out center tags;`}
-// Overpass returns .m then .s; tag each element by matching selectors client-side
-function isMain(t){if(biz==="tyre")return t.shop==="tyres"||t["service:vehicle:tyres"]==="yes";if(biz==="mech")return t.shop==="car_repair"||t.craft==="car_repair";return t.amenity==="car_wash"}
-function addr(t){return [t["addr:street"]&&(t["addr:street"]+" "+(t["addr:housenumber"]||"")).trim(),t["addr:city"]].filter(Boolean).join(", ")}
 
-let viewCache=new Map(),lastComp=[],gen=0;
-function roadClasses(z){return z>=14?"motorway|trunk|primary|secondary|tertiary|motorway_link|trunk_link|primary_link":z>=12?"motorway|trunk|primary|secondary":"motorway|trunk|primary"}
-async function loadView(){
-  const my=++gen;G.comp.clearLayers();G.road.clearLayers();const z=map.getZoom();
-  if(z<11){status("Zoom in to a town to see competitors and traffic.");return}
-  if(!on.comp&&!on.road)return;
-  const b=map.getBounds().pad(.1),bb=bboxStr(b),cls=roadClasses(z),key=biz+cls+bb+on.comp+on.road;
-  const q=`[out:json][timeout:25];`+(on.comp?compQuery(`(${bb})`).replace("[out:json][timeout:25];",""):"")+(on.road&&z>=11?`way["highway"~"^(${cls})$"](${bb});out geom tags;`:"");
-  status("Loading map data…");
-  let d=viewCache.get(key);
-  if(!d){try{d=await overpass(q)}catch(e){if(my===gen)status("");if(my===gen)showRetry("The free map-data server is busy.",loadView);return}viewCache.set(key,d)}
-  if(my!==gen)return;
-  const seen=new Set(),els=d.elements.filter(e=>{const id=e.type+e.id;if(seen.has(id))return false;seen.add(id);return true});
-  els.filter(e=>e.tags&&e.tags.highway&&e.geometry).forEach(w=>{const r=ROAD[w.tags.highway];if(r)L.polyline(w.geometry.map(g=>[g.lat,g.lon]),{color:r.c,weight:r.w,opacity:.85,interactive:false}).addTo(G.road)});
-  lastComp=els.filter(e=>!(e.tags&&e.tags.highway)).map(e=>({p:ll(e),t:e.tags||{},main:isMain(e.tags||{})}));
-  lastComp.sort((x,y)=>x.main-y.main).forEach(c=>{const m=L.circleMarker(c.p,{radius:c.main?8:5,color:"#fff",weight:2,fillColor:c.main?"#e4002b":"#555",fillOpacity:.95});
-    m.bindPopup(`<b>${c.t.name||"Unnamed"}</b><br>${c.main?BIZ[biz].mainL.replace(/s$/,""):BIZ[biz].sideL.replace(/ \(.*/,"").replace(/s$/,"")}${addr(c.t)?"<br>"+addr(c.t):""}${c.t.opening_hours?"<br><span style='color:#666'>"+c.t.opening_hours+"</span>":""}`);m.addTo(G.comp)});
-  const nm=lastComp.filter(c=>c.main).length;status(on.comp?`${nm} ${BIZ[biz].mainL.toLowerCase()} and ${lastComp.length-nm} related businesses in view.`:"");
+// Competitors: nationwide file (refreshed weekly); falls back to a live query per view
+function kindsOf(t){let k="";if(t.shop==="tyres"||t["service:vehicle:tyres"]==="yes")k+="t";if(t.shop==="car_repair"||t.craft==="car_repair")k+="r";if(t.amenity==="car_wash")k+="w";return k}
+const fromOSM=els=>{const seen=new Set();return els.filter(e=>{const id=e.type+e.id;if(seen.has(id)||!e.tags||e.tags.highway)return false;seen.add(id);return true}).map(e=>{const t=e.tags,lat=e.lat??e.center?.lat,lon=e.lon??e.center?.lon;const st=[t["addr:street"],t["addr:housenumber"]].filter(Boolean).join(" ");return[lat,lon,kindsOf(t),t.name||"",[st,t["addr:city"]].filter(Boolean).join(", ")]}).filter(r=>r[2]&&r[0]!=null)};
+const role=k=>k.includes(BIZ[biz].main)?"main":BIZ[biz].side&&k.includes(BIZ[biz].side)?"side":null;
+let liveCache=new Map(),gen=0;
+async function drawComp(){
+  const my=++gen;G.comp.clearLayers();if(!on.comp)return;
+  if(map.getZoom()<9){if(!site)status("Zoom in on a town to see competitors.");return}
+  let pts=POI;const b=map.getBounds().pad(.2);
+  if(POI===null){status("Loading competitors…",true);return}
+  if(POI===false){
+    if(map.getZoom()<11){if(!site)status("Zoom in closer to load competitors.");return}
+    const bb=[b.getSouth(),b.getWest(),b.getNorth(),b.getEast()].map(x=>x.toFixed(3)).join(",");
+    if(!liveCache.has(bb)){status("Loading competitors…",true);try{liveCache.set(bb,fromOSM((await overpass(`[out:json][timeout:25];(nwr["shop"~"^(tyres|car_repair)$"](${bb});nwr["craft"="car_repair"](${bb});nwr["amenity"="car_wash"](${bb}););out center tags;`)).elements))}catch(e){if(my===gen)retry("The map-data server is busy.",drawComp);return}}
+    if(my!==gen)return;pts=liveCache.get(bb)}
+  let nm=0,ns=0;
+  pts.forEach(r=>{if(!b.contains([r[0],r[1]]))return;const ro=role(r[2]);if(!ro)return;ro==="main"?nm++:ns++;
+    const m=L.circleMarker([r[0],r[1]],{renderer,radius:ro==="main"?7:4.5,color:"#fff",weight:2,fillColor:ro==="main"?"#ff4d2e":"#5b6170",fillOpacity:1});
+    m.bindPopup(`<b>${esc(r[3])||"Unnamed"}</b><br><span style="color:#737884">${ro==="main"?BIZ[biz].mainL.slice(0,-1):BIZ[biz].sideL.slice(0,-1)}${r[4]?" · "+esc(r[4]):""}</span>`);m.addTo(G.comp)});
+  if(!site)status(`${nm} ${BIZ[biz].mainL.toLowerCase()}${BIZ[biz].side?` and ${ns} ${BIZ[biz].sideL.toLowerCase()}`:""} in view`);
 }
-function showRetry(msg,fn){const id="rt"+Date.now();$("status").innerHTML=`${msg} <button id="${id}" style="min-height:36px;font-size:14px;margin-left:6px">Try again</button>`;$(id).onclick=fn}
-const loadComp=loadView,loadRoads=loadView;
-// Municipality layer with SCB data
+function retry(msg,fn){$("status").innerHTML=`${esc(msg)} <button id="rt">Try again</button>`;$("rt").onclick=fn}
+fetch("competitors.json",{cache:"no-cache"}).then(r=>r.ok?r.json():Promise.reject()).then(d=>{POI=d.c;$("upd").textContent="Data "+d.updated;drawComp();if(site)checkSite(site)}).catch(()=>{POI=false;drawComp()});
+
+// Municipalities (SCB)
 let kom=null,komScore={};
 function pctFn(vals,inv){const v=vals.filter(x=>x!=null).sort((a,b)=>a-b);return x=>{if(x==null)return .5;let i=0;while(i<v.length&&v[i]<x)i++;const p=i/(v.length-1);return inv?1-p:p}}
 function scoreKom(){if(!kom)return;const P=kom.features.map(f=>f.properties);P.forEach(p=>p.dens=p.cars/p.pop*1000);
   const W=biz==="wash"?{cars:4,dens:1,inc:5,cost:1}:biz==="mech"?{cars:5,dens:3,inc:1,cost:4}:{cars:5,dens:4,inc:2,cost:3};
   const f={cars:pctFn(P.map(p=>p.cars)),dens:pctFn(P.map(p=>p.dens)),inc:pctFn(P.map(p=>p.inc)),cost:pctFn(P.map(p=>p.hps),true)};
   P.forEach(p=>{let s=0,t=0;for(const k in W){s+=W[k]*f[k](k==="cost"?p.hps:p[k]);t+=W[k]}komScore[p.c]=s/t*100})}
-function komColor(s){const t=Math.max(0,Math.min(1,(s-30)/50));return `rgba(228,0,43,${.08+t*.55})`}
-function drawKom(){G.kom.clearLayers();if(!on.kom||!kom)return;L.geoJSON(kom,{style:f=>({color:"#111",weight:1,fillColor:komColor(komScore[f.properties.c]),fillOpacity:.6}),interactive:false}).addTo(G.kom)}
+function drawKom(){G.kom.clearLayers();if(!on.kom||!kom)return;L.geoJSON(kom,{renderer,interactive:false,style:f=>{const t=Math.max(0,Math.min(1,(komScore[f.properties.c]-35)/45));return{color:"#fff",weight:.8,fillColor:"#ff4d2e",fillOpacity:.05+t*.42}}}).addTo(G.kom)}
 function inPoly(pt,ring){let x=pt[1],y=pt[0],c=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const[xi,yi]=ring[i],[xj,yj]=ring[j];if((yi>y)!=(yj>y)&&x<(xj-xi)*(y-yi)/(yj-yi)+xi)c=!c}return c}
-function komAt(p){if(!kom)return null;return kom.features.find(f=>f.geometry.coordinates.some(poly=>inPoly(p,poly[0])))?.properties||null}
+const komAt=p=>kom?kom.features.find(f=>f.geometry.coordinates.some(poly=>inPoly(p,poly[0])))?.properties||null:null;
 fetch("kommuner.json").then(r=>r.json()).then(d=>{kom=d;scoreKom();drawKom();if(site)checkSite(site)}).catch(()=>{});
-// Trafikverket measured flow
-async function loadTV(){G.tv.clearLayers();if(!on.tv||!tvKey)return;if(map.getZoom()<9){status("Zoom in to see measured traffic.");return}
+
+// Trafikverket live flow
+async function loadTV(){G.tv.clearLayers();if(!on.tv||!tvKey)return;if(map.getZoom()<9){status("Zoom in to see live traffic sensors.");return}
   const b=map.getBounds();const xml=`<REQUEST><LOGIN authenticationkey="${tvKey.replace(/[^\w-]/g,"")}"/><QUERY objecttype="TrafficFlow" schemaversion="1.4" limit="500"><FILTER><WITHIN name="Geometry.WGS84" shape="box" value="${b.getWest()} ${b.getSouth()}, ${b.getEast()} ${b.getNorth()}"/></FILTER></QUERY></REQUEST>`;
   try{const r=await fetch("https://api.trafikinfo.trafikverket.se/v2/data.json",{method:"POST",headers:{"Content-Type":"text/xml"},body:xml});const d=await r.json();
-    const items=d?.RESPONSE?.RESULT?.[0]?.TrafficFlow||[];if(d?.RESPONSE?.RESULT?.[0]?.ERROR)throw new Error(d.RESPONSE.RESULT[0].ERROR.MESSAGE);
-    const bySite=new Map();items.forEach(i=>{const m=/POINT \(([-\d.]+) ([-\d.]+)\)/.exec(i.Geometry?.WGS84||"");if(!m)return;const k=i.SiteId||m[0];const o=bySite.get(k)||{p:[+m[2],+m[1]],flow:0,spd:i.AverageVehicleSpeed,t:i.MeasurementTime};o.flow+=+i.VehicleFlowRate||0;bySite.set(k,o)});
-    bySite.forEach(s=>L.circleMarker(s.p,{radius:7+Math.min(10,s.flow/400),color:"#fff",weight:2,fillColor:"#1f5fbf",fillOpacity:.9}).bindPopup(`<b>${fmt(s.flow)} vehicles/hour</b> right now<br>Average speed ${fmt(s.spd)} km/h<br><span style="color:#666">Trafikverket sensor, ${(s.t||"").slice(0,16).replace("T"," ")}</span>`).addTo(G.tv));
-    status(bySite.size?`${bySite.size} Trafikverket sensors in view.`:"No Trafikverket sensors in this area. They sit mostly on big roads around larger cities.");
-  }catch(e){status("Trafikverket didn't answer: check your API key. "+(e.message||""))}}
+    const res=d?.RESPONSE?.RESULT?.[0];if(res?.ERROR)throw new Error(res.ERROR.MESSAGE);const S=new Map();
+    (res?.TrafficFlow||[]).forEach(i=>{const m=/POINT \(([-\d.]+) ([-\d.]+)\)/.exec(i.Geometry?.WGS84||"");if(!m)return;const k=i.SiteId||m[0];const o=S.get(k)||{p:[+m[2],+m[1]],flow:0,spd:i.AverageVehicleSpeed,t:i.MeasurementTime};o.flow+=+i.VehicleFlowRate||0;S.set(k,o)});
+    S.forEach(s=>L.circleMarker(s.p,{renderer,radius:6+Math.min(10,s.flow/400),color:"#fff",weight:2,fillColor:"#2563eb",fillOpacity:.9}).bindPopup(`<b>${fmt(s.flow)} vehicles/hour</b> now<br>Avg speed ${fmt(s.spd)} km/h<br><span style="color:#737884">Trafikverket sensor</span>`).addTo(G.tv));
+    status(S.size?`${S.size} live traffic sensors in view`:"No Trafikverket sensors here. They're mostly on big roads near larger cities.");
+  }catch(e){status("Trafikverket didn't accept the key. Tap Live traffic to change it.")}}
+
 // Site check
 const dist=(a,b)=>{const R=6371e3,r=Math.PI/180,dl=(b[0]-a[0])*r,dn=(b[1]-a[1])*r;const h=Math.sin(dl/2)**2+Math.cos(a[0]*r)*Math.cos(b[0]*r)*Math.sin(dn/2)**2;return 2*R*Math.asin(Math.sqrt(h))};
 function segDist(p,a,b){const k=Math.cos(p[0]*Math.PI/180),ax=(a[1]-p[1])*k,ay=a[0]-p[0],bx=(b[1]-p[1])*k,by=b[0]-p[0],dx=bx-ax,dy=by-ay;const t=Math.max(0,Math.min(1,-(ax*dx+ay*dy)/((dx*dx+dy*dy)||1e-12)));return Math.hypot(ax+t*dx,ay+t*dy)*111320}
-const km=m=>m<1000?Math.round(m/10)*10+" m":(m/1000).toFixed(1).replace(".",",")+" km";
+const gauge=v=>{const c=2*Math.PI*40,col=v>=70?"#16a34a":v>=50?"#f59e0b":"#ff4d2e";return `<div class="gauge"><svg viewBox="0 0 92 92"><circle cx="46" cy="46" r="40" fill="none" stroke="#f0f1f4" stroke-width="9"/><circle cx="46" cy="46" r="40" fill="none" stroke="${col}" stroke-width="9" stroke-linecap="round" stroke-dasharray="${c*v/100} ${c}"/></svg><div class="n"><div>${v}<small>of 100</small></div></div></div>`};
+const verdict=v=>v>=70?["Strong spot","#dcfce7","#166534"]:v>=50?["Worth a look","#fef3c7","#92400e"]:["Weak spot","#ffe4e0","#9f1d0b"];
+const bar=v=>`<div class="bar"><i style="width:${Math.round(v*100)}%"></i></div>`;
+let roadCache=new Map(),siteGen=0;
 async function checkSite(p){
-  site=p;G.site.clearLayers();
-  L.circle(p,{radius:1000,color:"#111",weight:1.5,fill:false,dashArray:"4 6",interactive:false}).addTo(G.site);
-  L.circle(p,{radius:3000,color:"#111",weight:1,fill:false,dashArray:"2 8",interactive:false}).addTo(G.site);
-  L.circleMarker(p,{radius:9,color:"#111",weight:3,fillColor:"#fff",fillOpacity:1}).addTo(G.site);
-  if($("panel").classList.contains("min")){$("panel").classList.remove("min");setTimeout(()=>{map.invalidateSize();map.panTo(p)},50)}$("out").innerHTML=`<p class="note">Checking this spot…</p>`;
-  const B=BIZ[biz];let comps=[],roads=[],place="";
-  const area=`(around:3000,${p[0]},${p[1]})`;
-  try{const q=compQuery(area)+`way["highway"~"^(motorway|trunk|primary|secondary|tertiary|motorway_link|trunk_link|primary_link|secondary_link|residential|unclassified)$"](around:300,${p[0]},${p[1]});out geom tags;`;
-    const geo=fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&lat=${p[0]}&lon=${p[1]}`).then(x=>x.json()).catch(()=>null);
-    const all=await overpass(q),g=await geo;
-    const seen=new Set(),els=all.elements.filter(e=>{const id=e.type+e.id;if(seen.has(id))return false;seen.add(id);return true});
-    comps=els.filter(e=>!(e.tags&&e.tags.highway)).map(e=>({p:ll(e),t:e.tags||{},main:isMain(e.tags||{})})).map(x=>({...x,d:dist(p,x.p)})).sort((a,b)=>a.d-b.d);
-    roads=els.filter(w=>w.tags&&ROAD[w.tags.highway]&&w.geometry).map(w=>{let d=1e9;for(let i=1;i<w.geometry.length;i++){const a=w.geometry[i-1],b=w.geometry[i];d=Math.min(d,segDist(p,[a.lat,a.lon],[b.lat,b.lon]))}return{t:w.tags,r:ROAD[w.tags.highway],d}});
-    if(g&&g.address){const a=g.address;place=[[a.road,a.house_number].filter(Boolean).join(" "),a.city||a.town||a.village||a.municipality].filter(Boolean).join(", ")}
-  }catch(e){$("out").innerHTML=`<p>The free map-data server is busy right now.</p><button id="siteRetry">Check this spot again</button>`;$("siteRetry").onclick=()=>checkSite(p);return}
-  const main=comps.filter(c=>c.main),m1=main.filter(c=>c.d<=1000).length,m3=main.length,s3=comps.length-m3;
-  // traffic: best road weighted by distance (frontage within ~60 m counts fully)
-  let best=null;roads.forEach(x=>{const eff=x.r.v*(x.d<=60?1:x.d<=150?.6:.3);if(!best||eff>best.eff)best={...x,eff}});
-  const nearest=roads.slice().sort((a,b)=>a.d-b.d)[0];
-  const k=komAt(p),ks=k?komScore[k.c]:null;
-  const tScore=best?best.eff:0, cScore=Math.max(0,1-(m1*.25+m3*.07)), dScore=ks!=null?ks/100:.5;
-  const total=Math.round((tScore*.4+cScore*.35+dScore*.25)*100);
-  $("out").innerHTML=`
-   <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:10px"><div><h2>${place||"Selected spot"}</h2><div class="note">${k?k.n+" municipality · ":""}scored as a ${B.name}</div></div><div class="big" title="Site score out of 100">${total}</div></div>
-   <h3>Traffic past the door</h3>
-   ${best?`<div class="row"><span>Busiest road within 300 m</span><b>${best.t.name||best.t.ref||best.r.l}</b></div><div class="row"><span>Road type</span><b>${best.r.l}${best.t.ref?" ("+best.t.ref+")":""}</b></div><div class="row"><span>Typical traffic</span><b>${best.r.adt} vehicles/day</b></div><div class="row"><span>Distance to it</span><b>${km(best.d)}</b></div>`:`<p>No through-roads within 300 m. Expect little passing traffic.</p>`}
-   ${nearest&&best&&nearest.t!==best.t?`<div class="row"><span>Nearest street</span><b>${nearest.t.name||nearest.r.l}</b></div>`:""}
-   <div class="meter"><i style="width:${Math.round(tScore*100)}%"></i></div>
-   <p class="note">Daily traffic is a typical range for this kind of Swedish road, not a count. Turn on Measured traffic for live Trafikverket sensors, or check the exact yearly figure in Trafikverket's Vägtrafikflödeskarta.</p>
-   <h3>Competition</h3>
-   <div class="row"><span>${B.mainL} within 1 km</span><b>${m1}</b></div>
-   <div class="row"><span>${B.mainL} within 3 km</span><b>${m3}</b></div>
-   <div class="row"><span>${B.sideL} within 3 km</span><b>${s3}</b></div>
-   <div class="row"><span>Nearest ${B.name}</span><b>${main[0]?km(main[0].d):"none within 3 km"}</b></div>
-   ${main.length?`<ol>${main.slice(0,5).map(c=>`<li>${c.t.name||"Unnamed"} <span class="note">${km(c.d)}</span></li>`).join("")}</ol>`:""}
-   <div class="meter"><i style="width:${Math.round(cScore*100)}%"></i></div>
-   <p class="note">From OpenStreetMap, which misses some businesses. Check Google Maps for the area too.</p>
-   ${k?`<h3>Local market (SCB)</h3>
-   <div class="row"><span>Population</span><b>${fmt(k.pop)}</b></div>
-   <div class="row"><span>Private cars</span><b>${fmt(k.cars)}</b></div>
-   <div class="row"><span>Median net income</span><b>${fmt(k.inc)} kr</b></div>
-   <div class="row"><span>House price per m²</span><b>${k.hps?fmt(k.hps)+" kr":"–"}</b></div>
-   <div class="row"><span>Municipality score</span><b>${fmt(ks)} of 100</b></div>
-   <div class="meter"><i style="width:${Math.round(dScore*100)}%"></i></div>`:""}
-   <p class="note" style="margin-top:12px">Site score weighs traffic 40%, competition 35% and the municipality's market 25%. Use it to compare spots, then visit the best ones.</p>`;
+  const my=++siteGen;site=p;G.site.clearLayers();G.road.clearLayers();
+  [3000,1000].forEach((r,i)=>L.circle(p,{radius:r,color:"#16181d",weight:1.2,opacity:.5,fill:i===1,fillColor:"#16181d",fillOpacity:.04,dashArray:"3 6",interactive:false}).addTo(G.site));
+  L.marker(p,{icon:L.divIcon({className:"",html:'<div class="spot"></div>',iconSize:[22,22],iconAnchor:[11,11]}),interactive:false}).addTo(G.site);
+  openPanel();status("");
+  if(phone())setTimeout(()=>{const H=map.getSize().y,y=map.latLngToContainerPoint(p).y,vis=H-panel.getBoundingClientRect().height;if(y>vis-70||y<90)map.panBy([0,y-Math.min(H*.28,vis*.5)])},320);
+  const B=BIZ[biz],k=komAt(p),ks=k?komScore[k.c]:null;
+  let comps=null,cur=null,place="",tstate="wait";
+  if(POI)comps=POI.filter(r=>Math.abs(r[0]-p[0])<.05&&Math.abs(r[1]-p[1])<.1).map(r=>({r,d:dist(p,[r[0],r[1]]),ro:role(r[2])})).filter(x=>x.ro&&x.d<=3000).sort((a,b)=>a.d-b.d);
+  const render=()=>{
+    if(my!==siteGen)return;
+    const main=comps?comps.filter(c=>c.ro==="main"):[],side=comps?comps.filter(c=>c.ro==="side"):[];
+    const m1=main.filter(c=>c.d<=1000).length,m3=main.length;
+    let best=null;(cur||[]).forEach(x=>{const eff=x.r.v*(x.d<=60?1:x.d<=150?.6:.3);if(!best||eff>best.eff)best={...x,eff}});
+    const tS=cur?(best?best.eff:0):null,cS=comps?Math.max(0,1-(m1*.25+m3*.07)):null,dS=ks!=null?ks/100:null;
+    const parts=[[tS,.4],[cS,.35],[dS,.25]].filter(x=>x[0]!=null),tot=parts.reduce((a,x)=>a+x[1],0);
+    const done=tstate!=="wait"&&comps;
+    const score=done&&parts.length?Math.round(parts.reduce((a,x)=>a+x[0]*x[1],0)/tot*100):null;
+    const [vt,vb,vc]=score!=null?verdict(score):["Checking traffic…","#f4f5f7","#737884"];
+    $("out").innerHTML=`
+    <div class="hero"><div><h2>${esc(place)||"Selected spot"}</h2><p>${k?esc(k.n)+" · ":""}scored as a ${B.name}</p><span class="verdict" style="background:${vb};color:${vc}">${vt}</span></div>${score!=null?gauge(score):'<div class="gauge"><div class="n"><span class="spin" style="width:22px;height:22px;border-width:3px"></span></div></div>'}</div>
+    <div class="facs">
+    <section class="fac"><h3>Passing traffic <em>${tS!=null?Math.round(tS*100):"…"}</em></h3>
+      ${tstate==="wait"?'<div class="skel"></div><div class="skel" style="width:70%"></div>':tstate==="fail"?`<p class="note" style="margin:0">The traffic check timed out. <button class="btn" id="again" style="height:32px;margin-left:6px">Retry</button></p>`:
+      bar(tS)+(best?`<div class="kv"><span>Busiest road nearby</span><b>${esc(best.t.name||best.t.ref||best.r.l)}</b></div><div class="kv"><span>Road type</span><b>${best.r.l}${best.t.ref&&best.t.name?" · "+esc(best.t.ref):""}</b></div><div class="kv"><span>Typical traffic</span><b>${best.r.adt} / day</b></div><div class="kv"><span>Distance</span><b>${km(best.d)}</b></div>`:`<div class="kv"><span>No through-roads within 300 m</span><b>Low</b></div>`)+`<p class="note">A typical range for this road type, not a count. The coloured roads on the map show traffic levels around the spot.</p>`}
+    </section>
+    <section class="fac"><h3>Competition <em>${cS!=null?Math.round(cS*100):"…"}</em></h3>
+      ${comps?bar(cS)+`<div class="kv"><span>${B.mainL} within 1 km</span><b>${m1}</b></div><div class="kv"><span>${B.mainL} within 3 km</span><b>${m3}</b></div>${B.side?`<div class="kv"><span>${B.sideL} within 3 km</span><b>${side.length}</b></div>`:""}<div class="kv"><span>Nearest ${B.name}</span><b>${main[0]?km(main[0].d):"none in 3 km"}</b></div>
+      ${main.length?`<ul class="near">${main.slice(0,5).map(c=>`<li><span>${esc(c.r[3])||"Unnamed"}</span><span>${km(c.d)}</span></li>`).join("")}</ul>`:""}<p class="note">From OpenStreetMap, which misses some small workshops.${B.sideNote?" "+B.sideL+" are counted separately because "+B.sideNote+".":""}</p>`:'<div class="skel"></div><div class="skel" style="width:60%"></div>'}
+    </section>
+    ${k?`<section class="fac"><h3>Local market · SCB <em>${Math.round(ks)}</em></h3>${bar(ks/100)}
+      <div class="kv"><span>Population</span><b>${fmt(k.pop)}</b></div><div class="kv"><span>Private cars</span><b>${fmt(k.cars)}</b></div><div class="kv"><span>Cars per 1 000 people</span><b>${fmt(k.cars/k.pop*1000)}</b></div><div class="kv"><span>Median net income</span><b>${fmt(k.inc)} kr</b></div><div class="kv"><span>House price per m²</span><b>${k.hps?fmt(k.hps)+" kr":"–"}</b></div>
+      <p class="note">Compared with all 290 municipalities.</p></section>`:""}
+    </div>
+    <p class="note">The site score weighs traffic 40%, competition 35% and local market 25%.</p>`;
+    const ag=$("again");if(ag)ag.onclick=()=>checkSite(p);
+  };
+  render();
+  fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&lat=${p[0]}&lon=${p[1]}`).then(x=>x.json()).then(g=>{if(g&&g.address){const a=g.address;place=[[a.road,a.house_number].filter(Boolean).join(" "),a.city||a.town||a.village||a.municipality].filter(Boolean).join(", ");render()}}).catch(()=>{});
+  const key=p.map(x=>x.toFixed(4)).join();
+  const roadQ=`[out:json][timeout:20];(way["highway"~"^(motorway|trunk|primary|secondary|tertiary|motorway_link|trunk_link|primary_link|secondary_link|residential|unclassified)$"](around:300,${p[0]},${p[1]});way["highway"~"^(motorway|trunk|primary|secondary|tertiary)$"](around:1500,${p[0]},${p[1]}););out geom tags;`;
+  const compQ=`[out:json][timeout:25];(nwr["shop"~"^(tyres|car_repair)$"](around:3000,${p[0]},${p[1]});nwr["craft"="car_repair"](around:3000,${p[0]},${p[1]});nwr["amenity"="car_wash"](around:3000,${p[0]},${p[1]}););out center tags;`;
+  try{const d=roadCache.get(key)||await overpass(roadQ);roadCache.set(key,d);
+    if(my!==siteGen)return;
+    d.elements.forEach(w=>{const r=ROAD[w.tags&&w.tags.highway];if(r&&w.geometry&&r.v>=.3)L.polyline(w.geometry.map(g=>[g.lat,g.lon]),{renderer,color:r.c,weight:r.w,opacity:.9,interactive:false}).addTo(G.road)});
+    cur=d.elements.filter(w=>w.tags&&ROAD[w.tags.highway]&&w.geometry).map(w=>{let dd=1e9;for(let i=1;i<w.geometry.length;i++){const a=w.geometry[i-1],b=w.geometry[i];dd=Math.min(dd,segDist(p,[a.lat,a.lon],[b.lat,b.lon]))}return{t:w.tags,r:ROAD[w.tags.highway],d:dd}}).filter(x=>x.d<=300);
+    tstate="ok";
+  }catch(e){tstate="fail"}
+  if(!comps){try{comps=fromOSM((await overpass(compQ)).elements).map(r=>({r,d:dist(p,[r[0],r[1]]),ro:role(r[2])})).filter(x=>x.ro).sort((a,b)=>a.d-b.d)}catch(e){comps=[]}}
+  render();
 }
-// Initial help
-function help(){if(site)return;$("out").innerHTML=`<h2>Tap any spot to check it</h2><p>Search a town or address, then tap where you'd put the ${BIZ[biz].name}. You'll get passing traffic, nearby competitors and the local market from SCB.</p>
- <div class="key"><span><i class="dot" style="background:#e4002b"></i>${BIZ[biz].mainL}</span><span><i class="dot" style="background:#555"></i>${BIZ[biz].sideL}</span><span><i class="dot" style="background:#1f5fbf"></i>Measured traffic</span></div>
- <div class="key">${["motorway","trunk","primary","secondary","tertiary"].map(k=>`<span><i class="sw" style="background:${ROAD[k].c}"></i>${ROAD[k].l}</span>`).join("")}</div>
- <p class="note">Road colours show typical daily traffic, from heaviest (dark red) to light (yellow). Competitors and roads come live from OpenStreetMap; market data from SCB 2024–2025.</p>`}
-// Wiring
-let t;map.on("moveend",()=>{clearTimeout(t);t=setTimeout(()=>{loadView();loadTV()},500)});
+
+function intro(){if(site)return;const B=BIZ[biz];$("out").innerHTML=`<div class="intro"><h2>Find the best spot for your ${B.name}</h2><p>Every ${B.name} in Sweden is on the map. Check any address to see passing traffic, nearby competition and the local market.</p>
+ <ol class="steps"><li>Search a town or address</li><li>Tap where you'd open</li><li>Compare the scores of a few spots</li></ol>
+ <div class="legend"><div><i class="dot" style="background:#ff4d2e"></i>${B.mainL}</div>${B.side?`<div><i class="dot" style="background:#5b6170;width:9px;height:9px"></i>${B.sideL}${B.sideNote?" ("+B.sideNote+")":""}</div>`:""}
+ <div><i class="ln" style="background:linear-gradient(90deg,#9b1030,#e0262f,#ff7a2f,#ffb02e,#ffd666)"></i>Traffic around a checked spot, heavy to light</div></div>
+ <p class="src">Competitors: OpenStreetMap. Market: SCB 2024–2025 (cars, population, income, property prices).</p></div>`}
+
+const panel=$("panel");
+function openPanel(){if(phone()&&panel.classList.contains("peek"))panel.classList.remove("peek")}
+function cycle(up){if(up){panel.classList.contains("peek")?panel.classList.remove("peek"):panel.classList.add("full")}else{panel.classList.contains("full")?panel.classList.remove("full"):panel.classList.add("peek")}}
+$("handle").addEventListener("click",()=>cycle(panel.classList.contains("peek")||!panel.classList.contains("full")));
+let ty=null;$("handle").addEventListener("touchstart",e=>ty=e.touches[0].clientY,{passive:true});
+$("handle").addEventListener("touchend",e=>{if(ty==null)return;const dy=e.changedTouches[0].clientY-ty;ty=null;if(Math.abs(dy)<25)return;e.preventDefault();cycle(dy<0)});
+
+$("biz").innerHTML=Object.entries(BIZ).map(([k,v])=>`<button class="chip" data-b="${k}" aria-pressed="${k===biz}">${v.label}</button>`).join("");
+$("biz").addEventListener("click",e=>{const b=e.target.closest("[data-b]");if(!b)return;biz=b.dataset.b;document.querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed",c.dataset.b===biz));scoreKom();drawKom();drawComp();site?checkSite(site):intro()});
+let t;map.on("moveend",()=>{clearTimeout(t);t=setTimeout(()=>{drawComp();loadTV()},250)});
 map.on("click",e=>checkSite([e.latlng.lat,e.latlng.lng]));
-$("biz").addEventListener("change",e=>{biz=e.target.value;scoreKom();drawKom();loadComp();if(site)checkSite(site);else help()});
-["comp","road","kom","tv"].forEach(k=>$("L-"+k).addEventListener("click",ev=>{
-  if(k==="tv"&&!tvKey&&!on.tv){$("tvdlg").showModal();return}
-  on[k]=!on[k];ev.currentTarget.classList.toggle("on",on[k]);ev.currentTarget.setAttribute("aria-pressed",on[k]);
-  on[k]?G[k].addTo(map):map.removeLayer(G[k]);({comp:loadView,road:loadView,kom:drawKom,tv:loadTV})[k]()}));
-$("tvform").addEventListener("submit",e=>{if(e.submitter&&e.submitter.value==="save"){tvKey=$("tvkey").value.trim();try{localStorage.setItem("tvkey",tvKey)}catch(_){}if(tvKey){on.tv=true;$("L-tv").classList.add("on");$("L-tv").setAttribute("aria-pressed","true");G.tv.addTo(map);loadTV()}}});
-$("search").addEventListener("submit",async e=>{e.preventDefault();const q=$("q").value.trim();if(!q)return;status("Searching…");
+["comp","kom","tv"].forEach(k=>$("L-"+k).addEventListener("click",ev=>{
+  if(k==="tv"&&!tvKey&&!on.tv){$("tvkey").value="";$("tvdlg").showModal();return}
+  on[k]=!on[k];ev.currentTarget.setAttribute("aria-pressed",on[k]);on[k]?G[k].addTo(map):map.removeLayer(G[k]);({comp:drawComp,kom:drawKom,tv:loadTV})[k]()}));
+$("tvform").addEventListener("submit",e=>{if(e.submitter&&e.submitter.value==="save"){tvKey=$("tvkey").value.trim();try{localStorage.setItem("tvkey",tvKey)}catch(_){}if(tvKey){on.tv=true;$("L-tv").setAttribute("aria-pressed","true");G.tv.addTo(map);loadTV()}}});
+$("search").addEventListener("submit",async e=>{e.preventDefault();$("q").blur();const q=$("q").value.trim();if(!q)return;status("Searching…",true);
   try{const r=await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=se&limit=1&q=${encodeURIComponent(q)}`);const d=await r.json();
-    if(!d.length){status("Nothing found. Try a town name or full address.");return}const x=d[0];
-    if(x.boundingbox&&(x.type==="administrative"||x.addresstype==="city"||x.addresstype==="town"||x.addresstype==="municipality"))map.fitBounds([[+x.boundingbox[0],+x.boundingbox[2]],[+x.boundingbox[1],+x.boundingbox[3]]]);
-    else{map.setView([+x.lat,+x.lon],16);checkSite([+x.lat,+x.lon])}status("")}catch(_){status("Search isn't responding. Try again.")}});
-$("handle").addEventListener("click",()=>{$("panel").classList.toggle("min");setTimeout(()=>map.invalidateSize(),50)});
-help();loadView();
+    if(!d.length){status("Nothing found. Try a town name or a full address.");return}const x=d[0];status("");
+    const area=["city","town","municipality","county","state","village","suburb"].includes(x.addresstype)||x.type==="administrative";
+    if(area&&x.boundingbox){site=null;siteGen++;G.site.clearLayers();G.road.clearLayers();map.fitBounds([[+x.boundingbox[0],+x.boundingbox[2]],[+x.boundingbox[1],+x.boundingbox[3]]],{paddingTopLeft:phone()?[0,60]:[420,0]});intro();if(phone())panel.classList.add("peek")}
+    else{map.setView([+x.lat,+x.lon],16);checkSite([+x.lat,+x.lon])}}catch(_){status("Search isn't answering. Try again.")}});
+if(phone())panel.classList.add("peek");
+intro();
 }
 </script>
 </body>
