@@ -9,6 +9,7 @@ on:
     paths:
       - ".github/workflows/update-competitors.yml"
       - "scripts/build_competitors.py"
+      - "scripts/build_deso.py"
 
 permissions:
   contents: write
@@ -37,22 +38,27 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install osmium
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq osmium-tool
+      - name: Install osmium and geometry libraries
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq osmium-tool
+          pip install -q shapely pyproj
 
       - name: Download tyre shops, garages and car washes in Sweden
         run: python src/scripts/build_competitors.py site/competitors.json
+
+      - name: Download neighbourhood market data from Statistics Sweden
+        run: python -W ignore src/scripts/build_deso.py site/deso.json
 
       - name: Publish if changed
         working-directory: site
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add competitors.json
+          git add competitors.json deso.json
           if git diff --cached --quiet; then
             echo "No changes"
           else
-            git commit -m "Update competitor data"
+            git commit -m "Update competitor and market data"
             git pull --rebase origin gh-pages
             git push origin gh-pages
           fi
