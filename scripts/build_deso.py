@@ -19,6 +19,8 @@ import sys
 import time
 import urllib.request
 
+import shapely
+
 from pyproj import Transformer
 from shapely.geometry import mapping, shape
 from shapely.ops import transform  # noqa: shapely 2 still supports this
@@ -28,7 +30,7 @@ WFS = ("https://geodata.scb.se/geoserver/stat/wfs?service=WFS&version=2.0.0&requ
 API = "https://api.scb.se/OV0104/v1/doris/sv/ssd/"
 SUFFIX = "_DeSO2025"
 CATCHMENT_M = 3000
-SIMPLIFY_M = 100  # metres; keeps outlines recognisable while keeping the file small
+SIMPLIFY_M = 250  # metres; keeps outlines recognisable while keeping the file small
 
 
 def get(url, body=None):
@@ -95,14 +97,16 @@ def main(out):
     geo = get(WFS)
     to_wgs = Transformer.from_crs("EPSG:3006", "EPSG:4326", always_xy=True).transform
     feats = []
-    for f in geo["features"]:
+    shapes = [shape(f["geometry"]) for f in geo["features"]]
+    # Simplify all areas together so neighbours keep identical shared borders (no slivers)
+    simple = shapely.coverage_simplify(shapes, SIMPLIFY_M)
+    for f, g, gs in zip(geo["features"], shapes, simple):
         p = f["properties"]
         c = p["desokod"]
-        g = shape(f["geometry"])
         km2 = g.area / 1e6
         pt = g.representative_point()
         lon, lat = to_wgs(pt.x, pt.y)
-        g = transform(to_wgs, g.simplify(SIMPLIFY_M, preserve_topology=True))
+        g = transform(to_wgs, gs if not gs.is_empty else g.simplify(SIMPLIFY_M))
         gj = mapping(g)
         if gj["type"] == "Polygon":
             gj = {"type": "MultiPolygon", "coordinates": [gj["coordinates"]]}
