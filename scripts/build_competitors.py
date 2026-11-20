@@ -10,8 +10,10 @@ Requires the `osmium` command (apt-get install osmium-tool).
 Usage: build_competitors.py OUT.json [SOURCE.osm.pbf]
   If SOURCE is given it is used instead of downloading (handy for testing).
 
-Output: {"updated": "YYYY-MM-DD", "c": [[lat, lon, kinds, name, address], ...]}
+Output: {"updated": "YYYY-MM-DD", "c": [[lat, lon, kinds, name, address, source], ...]}
 kinds is a string of letters: t = tyres, r = car repair, w = car wash.
+source: o = OpenStreetMap, s = SCB company register, os = both.
+With SCB_API_KEY set, workplaces from SCB's company register are merged in (scb_workplaces.py).
 """
 import datetime
 import json
@@ -105,6 +107,39 @@ def extract(pbf, workdir):
                 yield json.loads(line)
 
 
+def merge(rows, extra, radius_m=120):
+    """Add register workplaces; one already on OpenStreetMap within ~120 m with a shared kind is merged."""
+    cell = 0.002  # about 220 m north-south
+    grid = {}
+    for r in rows:
+        grid.setdefault((int(r[0] / cell), int(r[1] / cell)), []).append(r)
+    added = merged = 0
+    for e in extra:
+        gy, gx = int(e[0] / cell), int(e[1] / cell)
+        best, bestd = None, radius_m
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                for r in grid.get((gy + dy, gx + dx), ()):
+                    if not set(r[2]) & set(e[2]):
+                        continue
+                    d = ((r[0] - e[0]) * 111_000) ** 2 + ((r[1] - e[1]) * 111_000 * 0.5) ** 2
+                    if d ** 0.5 < bestd:
+                        best, bestd = r, d ** 0.5
+        if best:
+            best[2] = "".join(x for x in "trw" if x in best[2] + e[2])
+            best[3] = best[3] or e[3]
+            best[4] = best[4] or e[4]
+            if "s" not in best[5]:
+                best[5] += "s"
+            merged += 1
+        else:
+            row = [e[0], e[1], e[2], e[3], e[4], "s"]
+            rows.append(row)
+            grid.setdefault((gy, gx), []).append(row)
+            added += 1
+    print(f"  SCB register: {added} new places, {merged} matched OpenStreetMap")
+
+
 def main(out, source=None):
     with tempfile.TemporaryDirectory() as work:
         pbf = source
@@ -131,10 +166,19 @@ def main(out, source=None):
             street = " ".join(x for x in (t.get("addr:street"), t.get("addr:housenumber")) if x)
             addr = ", ".join(x for x in (street, t.get("addr:city")) if x)
             rows.append([round(lat, 5), round(lon, 5), k, t.get("name", ""), addr])
-    rows.sort()
     for w, n in sorted(reasons.items(), key=lambda x: -x[1]):
         print(f"  {n:6d}  {w}")
-    print("  by kind: " + ", ".join(f"{x}={sum(x in r[2] for r in rows)}" for x in "trw"))
+    print("  OpenStreetMap by kind: " + ", ".join(f"{x}={sum(x in r[2] for r in rows)}" for x in "trw"))
+    for r in rows:
+        r.append("o")
+    if os.environ.get("SCB_API_KEY") or os.environ.get("SCB_VIA_PROXY"):
+        import scb_workplaces
+        cache = os.path.join(os.path.dirname(os.path.abspath(out)), "scb_positions.json")
+        merge(rows, scb_workplaces.fetch(cache))
+    else:
+        print("  SCB_API_KEY not set: OpenStreetMap only")
+    rows.sort()
+    print("  total by kind: " + ", ".join(f"{x}={sum(x in r[2] for r in rows)}" for x in "trw"))
     minimum = int(os.environ.get("MIN_PLACES", "1000"))
     if len(rows) < minimum:
         raise SystemExit(f"Only {len(rows)} places found; refusing to overwrite the data file")
