@@ -72,6 +72,7 @@ button{cursor:pointer}
 .layers button{border:0;background:#fff;box-shadow:var(--sh);border-radius:999px;height:38px;padding:0 14px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:7px}
 .layers button i{width:9px;height:9px;border-radius:50%;background:#c9ccd3}
 .layers button[aria-pressed=true] i{background:var(--sig)}
+.layers #L-kom[aria-pressed=true] i{background:#6d28d9}
 .leaflet-left{left:420px}
 .leaflet-control-zoom{border:0!important;box-shadow:var(--sh)!important;border-radius:12px!important;overflow:hidden}
 .leaflet-control-zoom a{width:40px!important;height:40px!important;line-height:40px!important;border:0!important;color:var(--ink)!important}
@@ -200,6 +201,8 @@ L.control.zoom({position:"topleft"}).addTo(map);
 L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}).addTo(map);
 const G={kom:L.layerGroup(),road:L.layerGroup().addTo(map),comp:L.layerGroup().addTo(map),tv:L.layerGroup(),site:L.layerGroup().addTo(map),top:L.layerGroup().addTo(map)};
 const renderer=L.canvas({padding:.3});
+// Market heat gets its own pane and canvas below everything else, so it never covers competitor dots
+map.createPane("heat").style.zIndex=350;const heatRenderer=L.canvas({padding:.3,pane:"heat"});
 
 // Overpass: one request at a time, 15 s per server, then the next server
 let opChain=Promise.resolve();
@@ -247,7 +250,7 @@ function scoreKom(){if(!deso)return;const P=deso.features.map(f=>f.properties);
   const f={cars3:pctFn(P.map(p=>p.cars3)),gap:pctFn(P.map(p=>p.gap)),inc:pctFn(P.map(p=>p.inc)),cost:pctFn(P.map(p=>p.hps),true)};
   const raw=P.map(p=>{let s=0,t=0;for(const k in W){s+=W[k]*f[k](k==="cost"?p.hps:p[k]);t+=W[k]}return s/t});
   const rank=pctFn(raw);P.forEach((p,i)=>desoScore[p.c]=rank(raw[i])*100);drawTop()}
-function drawKom(){G.kom.clearLayers();if(!on.kom||!deso)return;L.geoJSON(deso,{renderer,interactive:false,style:f=>{const t=(desoScore[f.properties.c]||0)/100;return{color:"#fff",weight:.4,opacity:.6,fillColor:"#ff4d2e",fillOpacity:.03+t*t*.55}}}).addTo(G.kom)}
+function drawKom(){G.kom.clearLayers();if(!on.kom||!deso)return;L.geoJSON(deso,{renderer:heatRenderer,pane:"heat",interactive:false,style:f=>{const t=(desoScore[f.properties.c]||0)/100;return{stroke:false,fillColor:"#6d28d9",fillOpacity:.02+t*t*.5}}}).addTo(G.kom)}
 function inPoly(pt,ring){let x=pt[1],y=pt[0],c=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const[xi,yi]=ring[i],[xj,yj]=ring[j];if((yi>y)!=(yj>y)&&x<(xj-xi)*(y-yi)/(yj-yi)+xi)c=!c}return c}
 const areaAt=(fc,p)=>fc?fc.features.find(f=>f.geometry.coordinates.some(poly=>inPoly(p,poly[0])))?.properties||null:null;
 const komAt=p=>areaAt(kom,p),desoAt=p=>areaAt(deso,p);
@@ -332,7 +335,7 @@ async function checkSite(p){
     </section>
     ${dz?`<section class="fac"><h3>Local market · SCB <em>${Math.round(ks)}</em></h3>${bar(ks/100)}
       <div class="kv"><span>Cars within 3 km</span><b>${fmt(dz.cars3)}</b></div><div class="kv"><span>People within 3 km</span><b>${fmt(dz.pop3)}</b></div>${POI?`<div class="kv"><span>Cars per ${B.name} within 3 km</span><b>${fmt(dz.gap)}</b></div>`:""}<div class="kv"><span>Cars per 1 000 people here</span><b>${fmt(dz.cars/dz.pop*1000)}</b></div><div class="kv"><span>Average net income here</span><b>${fmt(dz.inc*1000)} kr</b></div><div class="kv"><span>House price per m² (municipality)</span><b>${k&&k.hps?fmt(k.hps)+" kr":"–"}</b></div>
-      <p class="note">Neighbourhood ${esc(dz.c)}, compared with all 6 160 SCB neighbourhoods in Sweden. Darker red on the Market heat layer means a stronger market.</p></section>`:""}
+      <p class="note">Neighbourhood ${esc(dz.c)}, compared with all 6 160 SCB neighbourhoods in Sweden. Darker purple on the Market heat layer means a stronger market.</p></section>`:""}
     </div>
     <p class="note">The site score weighs traffic 40%, competition 35% and local market 25%.</p>`;
     const ag=$("again");if(ag)ag.onclick=()=>checkSite(p);
