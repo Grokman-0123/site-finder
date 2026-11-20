@@ -23,12 +23,17 @@ import time
 import urllib.request
 
 EXTRACT = "https://download.geofabrik.de/europe/sweden-latest.osm.pbf"
+# Broad pre-filter; kinds() below decides what each object counts as.
 FILTERS = [
-    "nwr/shop=tyres,car_repair",
+    "nwr/shop=tyres,car_repair,car,car_parts",
     "nwr/craft=car_repair",
-    "nwr/amenity=car_wash",
-    "nwr/service:vehicle:tyres=yes",
+    "nwr/amenity=car_wash,fuel",
+    "nwr/service:vehicle:tyres",
+    "nwr/service:vehicle:car_repair",
+    "nwr/car_wash",
 ]
+TYRE_WORDS = ("däck", "dack", "tyre", "tire", "vianor", "euromaster", "däckia", "dackia", "däckteam", "hjulmagasinet")
+REPAIR_BRANDS = ("mekonomen", "meca", "autoexperten", "bosch car service", "bilxtra", "verkstad", "motor", "bilservice")
 
 
 def download(dest):
@@ -49,14 +54,27 @@ def download(dest):
 
 
 def kinds(t):
-    k = ""
-    if t.get("shop") == "tyres" or t.get("service:vehicle:tyres") == "yes":
-        k += "t"
-    if t.get("shop") == "car_repair" or t.get("craft") == "car_repair":
-        k += "r"
-    if t.get("amenity") == "car_wash":
-        k += "w"
-    return k
+    """t = tyres, r = car repair, w = car wash. Also returns why, for the log."""
+    shop, craft, amenity = t.get("shop"), t.get("craft"), t.get("amenity")
+    label = " ".join(t.get(x, "") for x in ("name", "brand", "operator")).lower()
+    motoring = shop in ("car_repair", "car", "car_parts", "tyres") or craft == "car_repair"
+    k, why = "", []
+    if shop == "tyres":
+        k += "t"; why.append("shop=tyres")
+    elif t.get("service:vehicle:tyres") in ("yes", "only"):
+        k += "t"; why.append("service:vehicle:tyres")
+    elif motoring and any(w in label for w in TYRE_WORDS):
+        k += "t"; why.append("tyre name")
+    if shop == "car_repair" or craft == "car_repair":
+        k += "r"; why.append("car_repair")
+    elif shop in ("car", "car_parts") and (t.get("service:vehicle:car_repair") in ("yes", "only")
+                                         or any(w in label for w in REPAIR_BRANDS)):
+        k += "r"; why.append("dealer/parts with workshop")
+    if amenity == "car_wash":
+        k += "w"; why.append("amenity=car_wash")
+    elif t.get("car_wash") in ("yes", "self_service", "automated"):
+        k += "w"; why.append("fuel/other with car_wash")
+    return k, why
 
 
 def points(geom):
@@ -93,11 +111,11 @@ def main(out, source=None):
         if not pbf:
             pbf = os.path.join(work, "sweden.osm.pbf")
             download(pbf)
-        rows, seen = [], set()
+        rows, seen, reasons = [], set(), {}
         for feat in extract(pbf, work):
             t = feat.get("properties") or {}
             key = (t.get("@type"), t.get("@id"))
-            k = kinds(t)
+            k, why = kinds(t)
             if not k or key in seen:
                 continue
             pts = points(feat["geometry"])
@@ -106,12 +124,17 @@ def main(out, source=None):
             if not pts:
                 continue
             seen.add(key)
+            for w in why:
+                reasons[w] = reasons.get(w, 0) + 1
             lon = sum(p[0] for p in pts) / len(pts)
             lat = sum(p[1] for p in pts) / len(pts)
             street = " ".join(x for x in (t.get("addr:street"), t.get("addr:housenumber")) if x)
             addr = ", ".join(x for x in (street, t.get("addr:city")) if x)
             rows.append([round(lat, 5), round(lon, 5), k, t.get("name", ""), addr])
     rows.sort()
+    for w, n in sorted(reasons.items(), key=lambda x: -x[1]):
+        print(f"  {n:6d}  {w}")
+    print("  by kind: " + ", ".join(f"{x}={sum(x in r[2] for r in rows)}" for x in "trw"))
     minimum = int(os.environ.get("MIN_PLACES", "1000"))
     if len(rows) < minimum:
         raise SystemExit(f"Only {len(rows)} places found; refusing to overwrite the data file")
