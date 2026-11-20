@@ -90,7 +90,7 @@ dialog::backdrop{background:#0006}
 {
 const $=id=>document.getElementById(id);
 const fmt=n=>n==null||isNaN(n)?"–":Math.round(n).toLocaleString("sv-SE");
-const OVERPASS=["https://overpass-api.de/api/interpreter","https://overpass.kumi.systems/api/interpreter"];
+const OVERPASS=["https://overpass-api.de/api/interpreter","https://overpass.private.coffee/api/interpreter","https://maps.mail.ru/osm/tools/overpass/api/interpreter"];
 const BIZ={
  tyre:{name:"tyre shop",main:['nwr["shop"="tyres"]','nwr["service:vehicle:tyres"="yes"]'],side:['nwr["shop"="car_repair"]','nwr["craft"="car_repair"]'],mainL:"Tyre shops",sideL:"Garages (many also fit tyres)"},
  mech:{name:"car mechanic",main:['nwr["shop"="car_repair"]','nwr["craft"="car_repair"]'],side:['nwr["shop"="tyres"]'],mainL:"Garages",sideL:"Tyre shops"},
@@ -107,7 +107,12 @@ const G={comp:L.layerGroup().addTo(map),road:L.layerGroup().addTo(map),kom:L.lay
 const on={comp:true,road:true,kom:false,tv:false};
 const status=t=>$("status").textContent=t||"";
 
-async function overpass(q){let err;for(const u of OVERPASS){try{const r=await fetch(u,{method:"POST",body:"data="+encodeURIComponent(q),headers:{"Content-Type":"application/x-www-form-urlencoded"}});if(r.ok)return await r.json();err=new Error("HTTP "+r.status)}catch(e){err=e}}throw err}
+// One request at a time (public servers allow ~2 per visitor), 15 s timeout per server, fall through mirrors.
+let opChain=Promise.resolve(),opStart=0;
+async function opOnce(q){let err;for(let i=0;i<OVERPASS.length;i++){const u=OVERPASS[(opStart+i)%OVERPASS.length];const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),15000);
+  try{const r=await fetch(u,{method:"POST",body:"data="+encodeURIComponent(q),headers:{"Content-Type":"application/x-www-form-urlencoded"},signal:ac.signal});clearTimeout(tm);
+    if(r.ok){const d=await r.json();if(d&&d.elements){opStart=(opStart+i)%OVERPASS.length;return d}}err=new Error("HTTP "+r.status)}catch(e){clearTimeout(tm);err=e}}throw err||new Error("No server answered")}
+function overpass(q){const run=opChain.then(()=>opOnce(q));opChain=run.catch(()=>{});return run}
 const bboxStr=b=>`${b.getSouth().toFixed(4)},${b.getWest().toFixed(4)},${b.getNorth().toFixed(4)},${b.getEast().toFixed(4)}`;
 const ll=e=>e.center?[e.center.lat,e.center.lon]:[e.lat,e.lon];
 function compQuery(area){const B=BIZ[biz];return `[out:json][timeout:25];(${B.main.map(s=>s+area+";").join("")})->.m;(${B.side.map(s=>s+area+";").join("")})->.s;.m out center tags;.s out center tags;`}
@@ -115,27 +120,27 @@ function compQuery(area){const B=BIZ[biz];return `[out:json][timeout:25];(${B.ma
 function isMain(t){if(biz==="tyre")return t.shop==="tyres"||t["service:vehicle:tyres"]==="yes";if(biz==="mech")return t.shop==="car_repair"||t.craft==="car_repair";return t.amenity==="car_wash"}
 function addr(t){return [t["addr:street"]&&(t["addr:street"]+" "+(t["addr:housenumber"]||"")).trim(),t["addr:city"]].filter(Boolean).join(", ")}
 
-let compCache=new Map(),lastComp=[];
-async function loadComp(){
-  G.comp.clearLayers();if(!on.comp)return;
-  if(map.getZoom()<10){status("Zoom in to a town to see competitors.");return}
-  const b=map.getBounds().pad(.15),key=biz+bboxStr(b);status("Loading competitors…");
-  try{const d=compCache.get(key)||await overpass(compQuery(`(${bboxStr(b)})`));compCache.set(key,d);
-    const seen=new Set();lastComp=d.elements.filter(e=>{const id=e.type+e.id;if(seen.has(id))return false;seen.add(id);return true}).map(e=>({p:ll(e),t:e.tags||{},main:isMain(e.tags||{})}));
-    lastComp.sort((a,b)=>a.main-b.main).forEach(c=>{const m=L.circleMarker(c.p,{radius:c.main?8:5,color:"#fff",weight:2,fillColor:c.main?"#e4002b":"#555",fillOpacity:.95});
-      m.bindPopup(`<b>${c.t.name||"Unnamed"}</b><br>${c.main?BIZ[biz].mainL.replace(/s$/,""):BIZ[biz].sideL.replace(/ \(.*/,"").replace(/s$/,"")}${addr(c.t)?"<br>"+addr(c.t):""}${c.t.opening_hours?"<br><span style='color:#666'>"+c.t.opening_hours+"</span>":""}`);m.addTo(G.comp)});
-    const nm=lastComp.filter(c=>c.main).length;status(`${nm} ${BIZ[biz].mainL.toLowerCase()} and ${lastComp.length-nm} related businesses in view.`);
-  }catch(e){status("Couldn't reach OpenStreetMap right now. Try again in a minute.")}
+let viewCache=new Map(),lastComp=[],gen=0;
+function roadClasses(z){return z>=14?"motorway|trunk|primary|secondary|tertiary|motorway_link|trunk_link|primary_link":z>=12?"motorway|trunk|primary|secondary":"motorway|trunk|primary"}
+async function loadView(){
+  const my=++gen;G.comp.clearLayers();G.road.clearLayers();const z=map.getZoom();
+  if(z<11){status("Zoom in to a town to see competitors and traffic.");return}
+  if(!on.comp&&!on.road)return;
+  const b=map.getBounds().pad(.1),bb=bboxStr(b),cls=roadClasses(z),key=biz+cls+bb+on.comp+on.road;
+  const q=`[out:json][timeout:25];`+(on.comp?compQuery(`(${bb})`).replace("[out:json][timeout:25];",""):"")+(on.road&&z>=11?`way["highway"~"^(${cls})$"](${bb});out geom tags;`:"");
+  status("Loading map data…");
+  let d=viewCache.get(key);
+  if(!d){try{d=await overpass(q)}catch(e){if(my===gen)status("");if(my===gen)showRetry("The free map-data server is busy.",loadView);return}viewCache.set(key,d)}
+  if(my!==gen)return;
+  const seen=new Set(),els=d.elements.filter(e=>{const id=e.type+e.id;if(seen.has(id))return false;seen.add(id);return true});
+  els.filter(e=>e.tags&&e.tags.highway&&e.geometry).forEach(w=>{const r=ROAD[w.tags.highway];if(r)L.polyline(w.geometry.map(g=>[g.lat,g.lon]),{color:r.c,weight:r.w,opacity:.85,interactive:false}).addTo(G.road)});
+  lastComp=els.filter(e=>!(e.tags&&e.tags.highway)).map(e=>({p:ll(e),t:e.tags||{},main:isMain(e.tags||{})}));
+  lastComp.sort((x,y)=>x.main-y.main).forEach(c=>{const m=L.circleMarker(c.p,{radius:c.main?8:5,color:"#fff",weight:2,fillColor:c.main?"#e4002b":"#555",fillOpacity:.95});
+    m.bindPopup(`<b>${c.t.name||"Unnamed"}</b><br>${c.main?BIZ[biz].mainL.replace(/s$/,""):BIZ[biz].sideL.replace(/ \(.*/,"").replace(/s$/,"")}${addr(c.t)?"<br>"+addr(c.t):""}${c.t.opening_hours?"<br><span style='color:#666'>"+c.t.opening_hours+"</span>":""}`);m.addTo(G.comp)});
+  const nm=lastComp.filter(c=>c.main).length;status(on.comp?`${nm} ${BIZ[biz].mainL.toLowerCase()} and ${lastComp.length-nm} related businesses in view.`:"");
 }
-let roadCache=new Map();
-async function loadRoads(){
-  G.road.clearLayers();if(!on.road)return;const z=map.getZoom();if(z<11)return;
-  const cls=z>=14?"motorway|trunk|primary|secondary|tertiary|motorway_link|trunk_link|primary_link":z>=12?"motorway|trunk|primary|secondary":"motorway|trunk|primary";
-  const b=map.getBounds().pad(.1),key=cls+bboxStr(b);
-  try{const d=roadCache.get(key)||await overpass(`[out:json][timeout:25];way["highway"~"^(${cls})$"](${bboxStr(b)});out geom tags;`);roadCache.set(key,d);
-    d.elements.forEach(w=>{const r=ROAD[w.tags.highway];if(!r||!w.geometry)return;L.polyline(w.geometry.map(g=>[g.lat,g.lon]),{color:r.c,weight:r.w,opacity:.85,interactive:false}).addTo(G.road)});
-  }catch(e){}
-}
+function showRetry(msg,fn){const id="rt"+Date.now();$("status").innerHTML=`${msg} <button id="${id}" style="min-height:36px;font-size:14px;margin-left:6px">Try again</button>`;$(id).onclick=fn}
+const loadComp=loadView,loadRoads=loadView;
 // Municipality layer with SCB data
 let kom=null,komScore={};
 function pctFn(vals,inv){const v=vals.filter(x=>x!=null).sort((a,b)=>a-b);return x=>{if(x==null)return .5;let i=0;while(i<v.length&&v[i]<x)i++;const p=i/(v.length-1);return inv?1-p:p}}
@@ -169,13 +174,14 @@ async function checkSite(p){
   if($("panel").classList.contains("min")){$("panel").classList.remove("min");setTimeout(()=>{map.invalidateSize();map.panTo(p)},50)}$("out").innerHTML=`<p class="note">Checking this spot…</p>`;
   const B=BIZ[biz];let comps=[],roads=[],place="";
   const area=`(around:3000,${p[0]},${p[1]})`;
-  try{const [c,r,g]=await Promise.all([overpass(compQuery(area)),
-     overpass(`[out:json][timeout:25];way["highway"~"^(motorway|trunk|primary|secondary|tertiary|motorway_link|trunk_link|primary_link|secondary_link|residential|unclassified)$"](around:300,${p[0]},${p[1]});out geom tags;`),
-     fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&lat=${p[0]}&lon=${p[1]}`).then(x=>x.json()).catch(()=>null)]);
-    const seen=new Set();comps=c.elements.filter(e=>{const id=e.type+e.id;if(seen.has(id))return false;seen.add(id);return true}).map(e=>({p:ll(e),t:e.tags||{},main:isMain(e.tags||{})})).map(x=>({...x,d:dist(p,x.p)})).sort((a,b)=>a.d-b.d);
-    roads=r.elements.filter(w=>ROAD[w.tags.highway]&&w.geometry).map(w=>{let d=1e9;for(let i=1;i<w.geometry.length;i++){const a=w.geometry[i-1],b=w.geometry[i];d=Math.min(d,segDist(p,[a.lat,a.lon],[b.lat,b.lon]))}return{t:w.tags,r:ROAD[w.tags.highway],d}});
+  try{const q=compQuery(area)+`way["highway"~"^(motorway|trunk|primary|secondary|tertiary|motorway_link|trunk_link|primary_link|secondary_link|residential|unclassified)$"](around:300,${p[0]},${p[1]});out geom tags;`;
+    const geo=fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&lat=${p[0]}&lon=${p[1]}`).then(x=>x.json()).catch(()=>null);
+    const all=await overpass(q),g=await geo;
+    const seen=new Set(),els=all.elements.filter(e=>{const id=e.type+e.id;if(seen.has(id))return false;seen.add(id);return true});
+    comps=els.filter(e=>!(e.tags&&e.tags.highway)).map(e=>({p:ll(e),t:e.tags||{},main:isMain(e.tags||{})})).map(x=>({...x,d:dist(p,x.p)})).sort((a,b)=>a.d-b.d);
+    roads=els.filter(w=>w.tags&&ROAD[w.tags.highway]&&w.geometry).map(w=>{let d=1e9;for(let i=1;i<w.geometry.length;i++){const a=w.geometry[i-1],b=w.geometry[i];d=Math.min(d,segDist(p,[a.lat,a.lon],[b.lat,b.lon]))}return{t:w.tags,r:ROAD[w.tags.highway],d}});
     if(g&&g.address){const a=g.address;place=[[a.road,a.house_number].filter(Boolean).join(" "),a.city||a.town||a.village||a.municipality].filter(Boolean).join(", ")}
-  }catch(e){$("out").innerHTML=`<p>Couldn't reach OpenStreetMap right now. Tap the spot again in a minute.</p>`;return}
+  }catch(e){$("out").innerHTML=`<p>The free map-data server is busy right now.</p><button id="siteRetry">Check this spot again</button>`;$("siteRetry").onclick=()=>checkSite(p);return}
   const main=comps.filter(c=>c.main),m1=main.filter(c=>c.d<=1000).length,m3=main.length,s3=comps.length-m3;
   // traffic: best road weighted by distance (frontage within ~60 m counts fully)
   let best=null;roads.forEach(x=>{const eff=x.r.v*(x.d<=60?1:x.d<=150?.6:.3);if(!best||eff>best.eff)best={...x,eff}});
@@ -213,13 +219,13 @@ function help(){if(site)return;$("out").innerHTML=`<h2>Tap any spot to check it<
  <div class="key">${["motorway","trunk","primary","secondary","tertiary"].map(k=>`<span><i class="sw" style="background:${ROAD[k].c}"></i>${ROAD[k].l}</span>`).join("")}</div>
  <p class="note">Road colours show typical daily traffic, from heaviest (dark red) to light (yellow). Competitors and roads come live from OpenStreetMap; market data from SCB 2024–2025.</p>`}
 // Wiring
-let t;map.on("moveend",()=>{clearTimeout(t);t=setTimeout(()=>{loadComp();loadRoads();loadTV()},400)});
+let t;map.on("moveend",()=>{clearTimeout(t);t=setTimeout(()=>{loadView();loadTV()},500)});
 map.on("click",e=>checkSite([e.latlng.lat,e.latlng.lng]));
 $("biz").addEventListener("change",e=>{biz=e.target.value;scoreKom();drawKom();loadComp();if(site)checkSite(site);else help()});
 ["comp","road","kom","tv"].forEach(k=>$("L-"+k).addEventListener("click",ev=>{
   if(k==="tv"&&!tvKey&&!on.tv){$("tvdlg").showModal();return}
   on[k]=!on[k];ev.currentTarget.classList.toggle("on",on[k]);ev.currentTarget.setAttribute("aria-pressed",on[k]);
-  on[k]?G[k].addTo(map):map.removeLayer(G[k]);({comp:loadComp,road:loadRoads,kom:drawKom,tv:loadTV})[k]()}));
+  on[k]?G[k].addTo(map):map.removeLayer(G[k]);({comp:loadView,road:loadView,kom:drawKom,tv:loadTV})[k]()}));
 $("tvform").addEventListener("submit",e=>{if(e.submitter&&e.submitter.value==="save"){tvKey=$("tvkey").value.trim();try{localStorage.setItem("tvkey",tvKey)}catch(_){}if(tvKey){on.tv=true;$("L-tv").classList.add("on");$("L-tv").setAttribute("aria-pressed","true");G.tv.addTo(map);loadTV()}}});
 $("search").addEventListener("submit",async e=>{e.preventDefault();const q=$("q").value.trim();if(!q)return;status("Searching…");
   try{const r=await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=se&limit=1&q=${encodeURIComponent(q)}`);const d=await r.json();
@@ -227,7 +233,7 @@ $("search").addEventListener("submit",async e=>{e.preventDefault();const q=$("q"
     if(x.boundingbox&&(x.type==="administrative"||x.addresstype==="city"||x.addresstype==="town"||x.addresstype==="municipality"))map.fitBounds([[+x.boundingbox[0],+x.boundingbox[2]],[+x.boundingbox[1],+x.boundingbox[3]]]);
     else{map.setView([+x.lat,+x.lon],16);checkSite([+x.lat,+x.lon])}status("")}catch(_){status("Search isn't responding. Try again.")}});
 $("handle").addEventListener("click",()=>{$("panel").classList.toggle("min");setTimeout(()=>map.invalidateSize(),50)});
-help();loadComp();loadRoads();
+help();loadView();
 }
 </script>
 </body>
