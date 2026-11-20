@@ -81,6 +81,27 @@ button{cursor:pointer}
 .spot{position:relative;width:22px;height:22px;border-radius:50%;background:var(--ink);border:4px solid #fff;box-shadow:0 2px 10px rgba(0,0,0,.4)}
 .spot::after{content:"";position:absolute;inset:-14px;border-radius:50%;border:2px solid var(--ink);opacity:0;animation:pl 1.8s ease-out infinite}
 @keyframes pl{0%{transform:scale(.4);opacity:.7}100%{transform:scale(1.4);opacity:0}}
+.layers .tl-btn svg{flex:none}
+.layers .tl-btn[aria-pressed=true]{background:var(--ink);color:#fff}
+.toplist{position:fixed;z-index:460;left:424px;right:16px;bottom:16px;background:var(--card);border-radius:var(--r);box-shadow:var(--sh);padding:12px}
+.toplist[hidden]{display:none}
+.tl-head{display:flex;align-items:center;gap:10px;padding:0 2px 10px}
+.tl-head b{font-family:Archivo,Inter,sans-serif;font-stretch:105%;font-weight:800;font-size:16px;white-space:nowrap}
+.tl-head span{color:var(--mut);font-size:13px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tl-head button{flex:none;border:0;background:var(--soft);border-radius:8px;width:32px;height:32px;display:grid;place-items:center}
+.tl-row{display:flex;gap:8px;overflow-x:auto;list-style:none;margin:0;padding:0 0 4px;scroll-snap-type:x proximity;overscroll-behavior-x:contain}
+.tl-row li{flex:none;width:250px;scroll-snap-align:start}
+.tl-card{width:100%;height:100%;text-align:left;border:1px solid var(--line);background:#fff;border-radius:12px;padding:10px 12px;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:2px 10px;align-items:center}
+.tl-card:hover{border-color:#c9ccd3}
+.tl-card[aria-current=true]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.tl-n,.tl-pin{width:24px;height:24px;border-radius:50%;background:var(--ink);color:#fff;font-weight:700;font-size:12px;display:grid;place-items:center}
+.tl-n{grid-row:span 2}
+.tl-pin{border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35);width:26px;height:26px}
+.tl-name{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tl-meta{font-size:12px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tl-s{grid-row:span 2;font-family:Archivo,Inter,sans-serif;font-weight:800;font-size:20px;font-variant-numeric:tabular-nums}
+.tl-empty{font-size:14px;color:var(--mut);padding:6px 2px 10px}
+body.tl-open .leaflet-bottom{bottom:150px}
 .handle{display:none}
 dialog{border:0;border-radius:var(--r);box-shadow:var(--sh);max-width:min(92vw,440px);padding:20px}
 dialog::backdrop{background:rgba(16,18,24,.45)}
@@ -104,6 +125,14 @@ dialog input{width:100%;height:46px;border:1px solid var(--line);border-radius:1
  .leaflet-top.leaflet-left{top:calc(58px + env(safe-area-inset-top))}
  .leaflet-bottom{bottom:46vh}
  body:has(.panel.peek) .leaflet-bottom{bottom:150px}
+ .toplist{left:8px;right:8px;bottom:calc(46vh + 8px);padding:10px}
+ body:has(.panel.peek) .toplist{bottom:158px}
+ body:has(.panel.full) .toplist{display:none}
+ .tl-row li{width:232px}
+ .tl-card{padding:9px 10px;gap:2px 8px}
+ .tl-s{font-size:17px}
+ body.tl-open .leaflet-bottom{bottom:calc(46vh + 130px)}
+ body.tl-open:has(.panel.peek) .leaflet-bottom{bottom:280px}
 }
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
@@ -128,7 +157,13 @@ dialog input{width:100%;height:46px;border:1px solid var(--line);border-radius:1
   <button id="L-comp" aria-pressed="true"><i></i>Competitors</button>
   <button id="L-kom" aria-pressed="false"><i></i>Market heat</button>
   <button id="L-tv" aria-pressed="false"><i></i>Live traffic</button>
+  <button id="L-top" class="tl-btn" aria-pressed="false" aria-controls="toplist"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></svg>Top spots</button>
 </div>
+
+<section class="toplist" id="toplist" hidden aria-labelledby="tl-title">
+  <div class="tl-head"><b id="tl-title">Top spots in view</b><span id="tl-sub"></span><button id="tl-close" aria-label="Close top spots"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+  <ol class="tl-row" id="tl-row"></ol>
+</section>
 
 <dialog id="tvdlg">
   <h2>Live traffic counts</h2>
@@ -163,7 +198,7 @@ const status=(t,busy)=>{$("status").innerHTML=t?(busy?'<span class="spin"></span
 const map=L.map("map",{zoomControl:false,preferCanvas:true}).setView([62.4,16.3],5);
 L.control.zoom({position:"topleft"}).addTo(map);
 L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}).addTo(map);
-const G={kom:L.layerGroup(),road:L.layerGroup().addTo(map),comp:L.layerGroup().addTo(map),tv:L.layerGroup(),site:L.layerGroup().addTo(map)};
+const G={kom:L.layerGroup(),road:L.layerGroup().addTo(map),comp:L.layerGroup().addTo(map),tv:L.layerGroup(),site:L.layerGroup().addTo(map),top:L.layerGroup().addTo(map)};
 const renderer=L.canvas({padding:.3});
 
 // Overpass: one request at a time, 15 s per server, then the next server
@@ -211,13 +246,42 @@ function scoreKom(){if(!deso)return;const P=deso.features.map(f=>f.properties);
   if(!POI)delete W.gap;
   const f={cars3:pctFn(P.map(p=>p.cars3)),gap:pctFn(P.map(p=>p.gap)),inc:pctFn(P.map(p=>p.inc)),cost:pctFn(P.map(p=>p.hps),true)};
   const raw=P.map(p=>{let s=0,t=0;for(const k in W){s+=W[k]*f[k](k==="cost"?p.hps:p[k]);t+=W[k]}return s/t});
-  const rank=pctFn(raw);P.forEach((p,i)=>desoScore[p.c]=rank(raw[i])*100)}
+  const rank=pctFn(raw);P.forEach((p,i)=>desoScore[p.c]=rank(raw[i])*100);drawTop()}
 function drawKom(){G.kom.clearLayers();if(!on.kom||!deso)return;L.geoJSON(deso,{renderer,interactive:false,style:f=>{const t=(desoScore[f.properties.c]||0)/100;return{color:"#fff",weight:.4,opacity:.6,fillColor:"#ff4d2e",fillOpacity:.03+t*t*.55}}}).addTo(G.kom)}
 function inPoly(pt,ring){let x=pt[1],y=pt[0],c=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const[xi,yi]=ring[i],[xj,yj]=ring[j];if((yi>y)!=(yj>y)&&x<(xj-xi)*(y-yi)/(yj-yi)+xi)c=!c}return c}
 const areaAt=(fc,p)=>fc?fc.features.find(f=>f.geometry.coordinates.some(poly=>inPoly(p,poly[0])))?.properties||null:null;
 const komAt=p=>areaAt(kom,p),desoAt=p=>areaAt(deso,p);
 fetch("kommuner.json").then(r=>r.json()).then(d=>{kom=d;d.features.forEach(f=>komByCode[f.properties.c]=f.properties);scoreKom();drawKom();if(site)checkSite(site)}).catch(()=>{});
 fetch("deso.json").then(r=>r.json()).then(d=>{deso=d;scoreKom();drawKom();if(site)checkSite(site)}).catch(()=>{});
+
+// Top spots: the best-scoring neighbourhoods in the current view, spread apart
+// The part of the map not hidden behind the panel, search bar or the list itself
+function visibleBounds(){const m=map.getContainer().getBoundingClientRect(),pr=$("panel").getBoundingClientRect(),tr=$("toplist").getBoundingClientRect();
+  let x0=0,y0=0,x1=m.width,y1=m.height;
+  if(phone()){y0=70;y1=Math.min(pr.top,topOpen?tr.top:pr.top)-8}else{x0=pr.right+8;if(topOpen)y1=tr.top-8}
+  if(x1-x0<80||y1-y0<80)return map.getBounds();
+  return L.latLngBounds(map.containerPointToLatLng([x0+16,y1-40]),map.containerPointToLatLng([x1-16,y0+20]))}
+let topOpen=false,topSel=null,topGen=0;const placeName=new Map();
+function drawTop(){G.top.clearLayers();if(!topOpen)return;const row=$("tl-row"),B=BIZ[biz];
+  $("tl-sub").textContent="for a "+B.name+", by local market score";
+  if(!deso){row.innerHTML='<li class="tl-empty">Loading market data…</li>';return}
+  const b=visibleBounds(),diag=map.distance(b.getNorthWest(),b.getSouthEast()),gap=Math.max(800,diag/20);
+  const cand=deso.features.map(f=>f.properties).filter(p=>b.contains([p.lat,p.lon])&&p.pop>0).sort((a,c)=>desoScore[c.c]-desoScore[a.c]);
+  const top=[];for(const p of cand){if(top.every(q=>dist([p.lat,p.lon],[q.lat,q.lon])>=gap))top.push(p);if(top.length===10)break}
+  if(!top.length){row.innerHTML='<li class="tl-empty">No neighbourhoods in view. Zoom out or move the map.</li>';return}
+  const name=p=>placeName.get(p.c)||(komByCode[p.k]?komByCode[p.k].n:"Area "+p.c);
+  row.innerHTML=top.map((p,i)=>`<li><button class="tl-card" data-i="${i}" aria-current="${topSel===p.c}"><span class="tl-n">${i+1}</span><span class="tl-name" id="tln-${esc(p.c)}">${esc(name(p))}</span><span class="tl-s">${Math.round(desoScore[p.c])}</span><span class="tl-meta">${fmt(p.cars3)} cars · ${POI?p.comp3+" "+(p.comp3===1?B.name:B.mainL.toLowerCase()):"–"} in 3 km</span></button></li>`).join("");
+  row.querySelectorAll(".tl-card").forEach(el=>el.addEventListener("click",()=>pickTop(top[+el.dataset.i])));
+  top.forEach((p,i)=>L.marker([p.lat,p.lon],{icon:L.divIcon({className:"",html:`<div class="tl-pin">${i+1}</div>`,iconSize:[26,26],iconAnchor:[13,13]}),title:name(p),zIndexOffset:500}).on("click",()=>pickTop(p)).addTo(G.top));
+  nameTop(top,++topGen)}
+function pickTop(p){topSel=p.c;$("tl-row").querySelectorAll(".tl-card").forEach(el=>el.setAttribute("aria-current",el.querySelector(".tl-name").id==="tln-"+p.c));checkSite([p.lat,p.lon])}
+// street-level names from OpenStreetMap, one request per second as its usage policy asks
+async function nameTop(top,my){for(const p of top){if(placeName.has(p.c))continue;await new Promise(r=>setTimeout(r,1100));if(my!==topGen)return;
+  try{const g=await(await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=16&lat=${p.lat}&lon=${p.lon}`)).json();const a=g&&g.address||{};
+    const here=a.suburb||a.neighbourhood||a.quarter||a.city_district||a.village||a.hamlet||a.road,town=a.city||a.town||a.municipality||(komByCode[p.k]||{}).n;
+    const n=[here,town].filter((x,i,arr)=>x&&arr.indexOf(x)===i).join(", ");if(n){placeName.set(p.c,n);const el=document.getElementById("tln-"+p.c);if(el)el.textContent=n}}catch(e){}}}
+function setTop(v){topOpen=v;$("L-top").setAttribute("aria-pressed",v);$("toplist").hidden=!v;document.body.classList.toggle("tl-open",v);
+  if(v&&phone()){panel.classList.remove("full");panel.classList.add("peek")}drawTop()}
 
 // Trafikverket live flow
 async function loadTV(){G.tv.clearLayers();if(!on.tv||!tvKey)return;if(map.getZoom()<9){status("Zoom in to see live traffic sensors.");return}
@@ -303,7 +367,7 @@ $("handle").addEventListener("touchend",e=>{if(ty==null)return;const dy=e.change
 
 $("biz").innerHTML=Object.entries(BIZ).map(([k,v])=>`<button class="chip" data-b="${k}" aria-pressed="${k===biz}">${v.label}</button>`).join("");
 $("biz").addEventListener("click",e=>{const b=e.target.closest("[data-b]");if(!b)return;biz=b.dataset.b;document.querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed",c.dataset.b===biz));scoreKom();drawKom();drawComp();site?checkSite(site):intro()});
-let t;map.on("moveend",()=>{clearTimeout(t);t=setTimeout(()=>{drawComp();loadTV()},250)});
+let t;map.on("moveend",()=>{clearTimeout(t);t=setTimeout(()=>{drawComp();loadTV();drawTop()},250)});
 map.on("click",e=>checkSite([e.latlng.lat,e.latlng.lng]));
 ["comp","kom","tv"].forEach(k=>$("L-"+k).addEventListener("click",ev=>{
   if(k==="tv"&&!tvKey&&!on.tv){$("tvkey").value="";$("tvdlg").showModal();return}
@@ -315,6 +379,7 @@ $("search").addEventListener("submit",async e=>{e.preventDefault();$("q").blur()
     const area=["city","town","municipality","county","state","village","suburb"].includes(x.addresstype)||x.type==="administrative";
     if(area&&x.boundingbox){site=null;siteGen++;G.site.clearLayers();G.road.clearLayers();map.fitBounds([[+x.boundingbox[0],+x.boundingbox[2]],[+x.boundingbox[1],+x.boundingbox[3]]],{paddingTopLeft:phone()?[0,60]:[420,0]});intro();if(phone())panel.classList.add("peek")}
     else{map.setView([+x.lat,+x.lon],16);checkSite([+x.lat,+x.lon])}}catch(_){status("Search isn't answering. Try again.")}});
+$("L-top").addEventListener("click",()=>setTop(!topOpen));$("tl-close").addEventListener("click",()=>{setTop(false);$("L-top").focus()});
 if(phone())panel.classList.add("peek");
 intro();
 }
