@@ -53,5 +53,6 @@ jobs:
             echo "No changes"
           else
             git commit -m "Update competitor data"
+            git pull --rebase origin gh-pages
             git push origin gh-pages
           fi
