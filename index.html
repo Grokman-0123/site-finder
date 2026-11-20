@@ -195,19 +195,29 @@ async function drawComp(){
   if(!site)status(`${nm} ${BIZ[biz].mainL.toLowerCase()}${BIZ[biz].side?` and ${ns} ${BIZ[biz].sideL.toLowerCase()}`:""} in view`);
 }
 function retry(msg,fn){$("status").innerHTML=`${esc(msg)} <button id="rt">Try again</button>`;$("rt").onclick=fn}
-fetch("competitors.json",{cache:"no-cache"}).then(r=>r.ok?r.json():Promise.reject()).then(d=>{POI=d.c;$("upd").textContent="Data "+d.updated;drawComp();if(site)checkSite(site)}).catch(()=>{POI=false;drawComp()});
+fetch("competitors.json",{cache:"no-cache"}).then(r=>r.ok?r.json():Promise.reject()).then(d=>{POI=d.c;$("upd").textContent="Data "+d.updated;drawComp();scoreKom();drawKom();if(site)checkSite(site)}).catch(()=>{POI=false;drawComp()});
 
-// Municipalities (SCB)
-let kom=null,komScore={};
-function pctFn(vals,inv){const v=vals.filter(x=>x!=null).sort((a,b)=>a-b);return x=>{if(x==null)return .5;let i=0;while(i<v.length&&v[i]<x)i++;const p=i/(v.length-1);return inv?1-p:p}}
-function scoreKom(){if(!kom)return;const P=kom.features.map(f=>f.properties);P.forEach(p=>p.dens=p.cars/p.pop*1000);
-  const W=biz==="wash"?{cars:4,dens:1,inc:5,cost:1}:biz==="mech"?{cars:5,dens:3,inc:1,cost:4}:{cars:5,dens:4,inc:2,cost:3};
-  const f={cars:pctFn(P.map(p=>p.cars)),dens:pctFn(P.map(p=>p.dens)),inc:pctFn(P.map(p=>p.inc)),cost:pctFn(P.map(p=>p.hps),true)};
-  P.forEach(p=>{let s=0,t=0;for(const k in W){s+=W[k]*f[k](k==="cost"?p.hps:p[k]);t+=W[k]}komScore[p.c]=s/t*100})}
-function drawKom(){G.kom.clearLayers();if(!on.kom||!kom)return;L.geoJSON(kom,{renderer,interactive:false,style:f=>{const t=Math.max(0,Math.min(1,(komScore[f.properties.c]-35)/45));return{color:"#fff",weight:.8,fillColor:"#ff4d2e",fillOpacity:.05+t*.42}}}).addTo(G.kom)}
+// Market heat: SCB neighbourhoods (DeSO, ~6 160 areas) scored on cars within 3 km,
+// cars per competitor, income and the municipality's house prices
+let kom=null,deso=null,desoScore={},komByCode={};
+function pctFn(vals,inv){const v=vals.filter(x=>x!=null).sort((a,b)=>a-b);return x=>{if(x==null)return .5;let lo=0,hi=v.length;while(lo<hi){const m=(lo+hi)>>1;v[m]<x?lo=m+1:hi=m}const p=lo/(v.length-1);return inv?1-p:p}}
+function scoreKom(){if(!deso)return;const P=deso.features.map(f=>f.properties);
+  const grid=new Map(),cell=r=>Math.floor(r[0]/.03)+","+Math.floor(r[1]/.09);
+  if(POI)POI.forEach(r=>{if(role(r[2])!=="main")return;const k=cell(r);(grid.get(k)||grid.set(k,[]).get(k)).push(r)});
+  P.forEach(p=>{let n=0;const gy=Math.floor(p.lat/.03),gx=Math.floor(p.lon/.09);
+    for(let a=-1;a<=1;a++)for(let b=-1;b<=1;b++)(grid.get((gy+a)+","+(gx+b))||[]).forEach(r=>{if(dist([p.lat,p.lon],[r[0],r[1]])<=3000)n++});
+    p.comp3=n;p.gap=p.cars3/(1+n);const k=komByCode[p.k];p.hps=k?k.hps:null});
+  const W=biz==="wash"?{cars3:3,gap:3,inc:4,cost:1}:biz==="mech"?{cars3:4,gap:4,inc:1,cost:3}:{cars3:4,gap:4,inc:2,cost:2};
+  if(!POI)delete W.gap;
+  const f={cars3:pctFn(P.map(p=>p.cars3)),gap:pctFn(P.map(p=>p.gap)),inc:pctFn(P.map(p=>p.inc)),cost:pctFn(P.map(p=>p.hps),true)};
+  const raw=P.map(p=>{let s=0,t=0;for(const k in W){s+=W[k]*f[k](k==="cost"?p.hps:p[k]);t+=W[k]}return s/t});
+  const rank=pctFn(raw);P.forEach((p,i)=>desoScore[p.c]=rank(raw[i])*100)}
+function drawKom(){G.kom.clearLayers();if(!on.kom||!deso)return;L.geoJSON(deso,{renderer,interactive:false,style:f=>{const t=(desoScore[f.properties.c]||0)/100;return{color:"#fff",weight:.4,opacity:.6,fillColor:"#ff4d2e",fillOpacity:.03+t*t*.55}}}).addTo(G.kom)}
 function inPoly(pt,ring){let x=pt[1],y=pt[0],c=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const[xi,yi]=ring[i],[xj,yj]=ring[j];if((yi>y)!=(yj>y)&&x<(xj-xi)*(y-yi)/(yj-yi)+xi)c=!c}return c}
-const komAt=p=>kom?kom.features.find(f=>f.geometry.coordinates.some(poly=>inPoly(p,poly[0])))?.properties||null:null;
-fetch("kommuner.json").then(r=>r.json()).then(d=>{kom=d;scoreKom();drawKom();if(site)checkSite(site)}).catch(()=>{});
+const areaAt=(fc,p)=>fc?fc.features.find(f=>f.geometry.coordinates.some(poly=>inPoly(p,poly[0])))?.properties||null:null;
+const komAt=p=>areaAt(kom,p),desoAt=p=>areaAt(deso,p);
+fetch("kommuner.json").then(r=>r.json()).then(d=>{kom=d;d.features.forEach(f=>komByCode[f.properties.c]=f.properties);scoreKom();drawKom();if(site)checkSite(site)}).catch(()=>{});
+fetch("deso.json").then(r=>r.json()).then(d=>{deso=d;scoreKom();drawKom();if(site)checkSite(site)}).catch(()=>{});
 
 // Trafikverket live flow
 async function loadTV(){G.tv.clearLayers();if(!on.tv||!tvKey)return;if(map.getZoom()<9){status("Zoom in to see live traffic sensors.");return}
@@ -232,7 +242,7 @@ async function checkSite(p){
   L.marker(p,{icon:L.divIcon({className:"",html:'<div class="spot"></div>',iconSize:[22,22],iconAnchor:[11,11]}),interactive:false}).addTo(G.site);
   openPanel();status("");
   if(phone())setTimeout(()=>{const H=map.getSize().y,y=map.latLngToContainerPoint(p).y,vis=H-panel.getBoundingClientRect().height;if(y>vis-70||y<90)map.panBy([0,y-Math.min(H*.28,vis*.5)])},320);
-  const B=BIZ[biz],k=komAt(p),ks=k?komScore[k.c]:null;
+  const B=BIZ[biz],k=komAt(p),dz=desoAt(p),ks=dz?desoScore[dz.c]:null;
   let comps=null,cur=null,place="",tstate="wait";
   if(POI)comps=POI.filter(r=>Math.abs(r[0]-p[0])<.05&&Math.abs(r[1]-p[1])<.1).map(r=>({r,d:dist(p,[r[0],r[1]]),ro:role(r[2])})).filter(x=>x.ro&&x.d<=3000).sort((a,b)=>a.d-b.d);
   const render=()=>{
@@ -256,9 +266,9 @@ async function checkSite(p){
       ${comps?bar(cS)+`<div class="kv"><span>${B.mainL} within 1 km</span><b>${m1}</b></div><div class="kv"><span>${B.mainL} within 3 km</span><b>${m3}</b></div>${B.side?`<div class="kv"><span>${B.sideL} within 3 km</span><b>${side.length}</b></div>`:""}<div class="kv"><span>Nearest ${B.name}</span><b>${main[0]?km(main[0].d):"none in 3 km"}</b></div>
       ${main.length?`<ul class="near">${main.slice(0,5).map(c=>`<li><span>${esc(c.r[3])||"Unnamed"}</span><span>${km(c.d)}</span></li>`).join("")}</ul>`:""}<p class="note">From OpenStreetMap, which misses some small workshops.${B.sideNote?" "+B.sideL+" are counted separately because "+B.sideNote+".":""}</p>`:'<div class="skel"></div><div class="skel" style="width:60%"></div>'}
     </section>
-    ${k?`<section class="fac"><h3>Local market · SCB <em>${Math.round(ks)}</em></h3>${bar(ks/100)}
-      <div class="kv"><span>Population</span><b>${fmt(k.pop)}</b></div><div class="kv"><span>Private cars</span><b>${fmt(k.cars)}</b></div><div class="kv"><span>Cars per 1 000 people</span><b>${fmt(k.cars/k.pop*1000)}</b></div><div class="kv"><span>Median net income</span><b>${fmt(k.inc)} kr</b></div><div class="kv"><span>House price per m²</span><b>${k.hps?fmt(k.hps)+" kr":"–"}</b></div>
-      <p class="note">Compared with all 290 municipalities.</p></section>`:""}
+    ${dz?`<section class="fac"><h3>Local market · SCB <em>${Math.round(ks)}</em></h3>${bar(ks/100)}
+      <div class="kv"><span>Cars within 3 km</span><b>${fmt(dz.cars3)}</b></div><div class="kv"><span>People within 3 km</span><b>${fmt(dz.pop3)}</b></div>${POI?`<div class="kv"><span>Cars per ${B.name} within 3 km</span><b>${fmt(dz.gap)}</b></div>`:""}<div class="kv"><span>Cars per 1 000 people here</span><b>${fmt(dz.cars/dz.pop*1000)}</b></div><div class="kv"><span>Average net income here</span><b>${fmt(dz.inc*1000)} kr</b></div><div class="kv"><span>House price per m² (municipality)</span><b>${k&&k.hps?fmt(k.hps)+" kr":"–"}</b></div>
+      <p class="note">Neighbourhood ${esc(dz.c)}, compared with all 6 160 SCB neighbourhoods in Sweden. Darker red on the Market heat layer means a stronger market.</p></section>`:""}
     </div>
     <p class="note">The site score weighs traffic 40%, competition 35% and local market 25%.</p>`;
     const ag=$("again");if(ag)ag.onclick=()=>checkSite(p);
@@ -282,7 +292,7 @@ function intro(){if(site)return;const B=BIZ[biz];$("out").innerHTML=`<div class=
  <ol class="steps"><li>Search a town or address</li><li>Tap where you'd open</li><li>Compare the scores of a few spots</li></ol>
  <div class="legend"><div><i class="dot" style="background:#ff4d2e"></i>${B.mainL}</div>${B.side?`<div><i class="dot" style="background:#5b6170;width:9px;height:9px"></i>${B.sideL}${B.sideNote?" ("+B.sideNote+")":""}</div>`:""}
  <div><i class="ln" style="background:linear-gradient(90deg,#9b1030,#e0262f,#ff7a2f,#ffb02e,#ffd666)"></i>Traffic around a checked spot, heavy to light</div></div>
- <p class="src">Competitors: OpenStreetMap. Market: SCB 2024–2025 (cars, population, income, property prices).</p></div>`}
+ <p class="src">Competitors: OpenStreetMap. Market: SCB 2024–2025 neighbourhood data (cars, population, income) and municipal property prices.</p></div>`}
 
 const panel=$("panel");
 function openPanel(){if(phone()&&panel.classList.contains("peek"))panel.classList.remove("peek")}
